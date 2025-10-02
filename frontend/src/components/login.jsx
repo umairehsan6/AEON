@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { login } from '../services/auth';
+import { getUserRole } from '../services/authutils';
 
 const LoginPage = () => {
   const [credentials, setCredentials] = useState({ username: '', password: '' });
@@ -25,13 +26,41 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    console.log('Attempting login with credentials:', credentials);
     try {
       const res = await login(credentials);
-      navigate('/');
+      console.log('Login response:', res);
+      
+      // Small delay to ensure tokens are stored
+      setTimeout(() => {
+        // Redirect based on user role after successful login
+        const role = getUserRole();
+        console.log('User role:', role);
+        if (role === "admin") {
+          navigate("/admin");
+        } else if (role === "user") {
+          navigate("/profile");
+        } else {
+          // Fallback to home page if role is not determined
+          console.log('No role found, redirecting to home');
+          navigate("/");
+        }
+      }, 100);
+      
       return res;
     } catch (err) {
-      setError(err?.response?.data || 'Login failed');
-      console.error('Login error:', err);
+      console.error('Login error details:', err);
+      console.error('Error response:', err?.response);
+      console.error('Error message:', err?.message);
+      
+      // Better error handling
+      if (err?.response?.data) {
+        setError(err.response.data);
+      } else if (err?.message) {
+        setError(err.message);
+      } else {
+        setError('Login failed. Please check your credentials and try again.');
+      }
     }
   };
 

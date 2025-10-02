@@ -5,6 +5,7 @@ import App from './App.jsx'
 import { createBrowserRouter, RouterProvider, Route, createRoutesFromElements } from 'react-router-dom'
 import Layout from './layouts/layout.jsx'
 import AdminLayout from './layouts/AdminLayout.jsx'
+import ProtectedRoute from './components/ProtectedRoute.jsx'
 import Home from './components/homepages.jsx'
 import Login from './components/login.jsx'
 import Signup from './components/signup2.jsx'
@@ -18,9 +19,17 @@ const router = createBrowserRouter(createRoutesFromElements(
       <Route path='' element={<HomePage />} />
       <Route path='login' element={<Login />} />
       <Route path='signup' element={<Signup />} />
-      <Route path='profile' element={<ProfilePage />} />
+      <Route path='profile' element={
+        <ProtectedRoute>
+          <ProfilePage />
+        </ProtectedRoute>
+      } />
     </Route>
-    <Route path='/admin' element={<AdminLayout />}>
+    <Route path='/admin' element={
+      <ProtectedRoute requiredRole="admin">
+        <AdminLayout />
+      </ProtectedRoute>
+    }>
       <Route path='' element={<AdminPage />} />
     </Route>
   </>
