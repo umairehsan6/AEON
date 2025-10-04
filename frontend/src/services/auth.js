@@ -2,6 +2,7 @@ import API from "../api/axios";
 
 const SIGNUP_URL = "/api/user/signup/";
 const LOGIN_URL = "/api/user/login/";
+const LOGOUT_URL = "/api/user/logout/";
 
 export const signup = async (userData) => {
   return API.post(SIGNUP_URL, userData); // no token required
@@ -34,4 +35,32 @@ export const login = async (credentials) => {
     throw new Error('No access or refresh token received');
   }
   return res;
+};
+
+export const logout = async (navigate = null) => {
+  try {
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (refreshToken) {
+      const res = await API.post(LOGOUT_URL, { refresh: refreshToken });
+      console.log('Logout API response:', res);
+    }
+  } catch (error) {
+    console.error('Error calling logout API:', error);
+    // Continue with local logout even if API call fails
+  } finally {
+    // Always clear local storage regardless of API call success
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user");
+    
+    // Clear axios default headers
+    delete API.defaults.headers.common["Authorization"];
+    
+    console.log('Logout completed');
+    
+    // Navigate if navigate function is provided
+    if (navigate) {
+      navigate('/');
+    }
+  }
 };

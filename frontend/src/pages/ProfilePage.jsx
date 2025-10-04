@@ -1,9 +1,16 @@
 import React from 'react';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
+import { logout } from '../services/auth';
 
 const ProfilePage = () => {
   const [userInfo, setUserInfo] = useState(null);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout(navigate);
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
@@ -84,7 +91,10 @@ const ProfilePage = () => {
                 >
                   Signup Page
                 </button>
-                <button className="w-full bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 transition-colors">
+                <button 
+                  onClick={handleLogout}
+                  className="w-full bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 transition-colors"
+                >
                   Logout
                 </button>
               </div>

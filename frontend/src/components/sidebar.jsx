@@ -1,4 +1,6 @@
 import React from 'react'; 
+import { useNavigate } from 'react-router-dom';
+import { logout } from '../services/auth';
 import { 
   LayoutDashboard,
   Shirt,
@@ -77,8 +79,13 @@ const utilityItems = [
  * Renders a flat navigation list.
  */
 export const AdminSidebar = ({ onClose }) => {
+  const navigate = useNavigate();
   // Hardcode the active path for visualization purposes, updated to reflect the new structure.
-  const currentPath = '/dashboard'; 
+  const currentPath = '/dashboard';
+
+  const handleLogout = () => {
+    logout(navigate);
+  }; 
 
   // Helper function to render a single link (pure UI element, no accordion logic)
   const renderLink = (item) => { 
@@ -148,7 +155,23 @@ export const AdminSidebar = ({ onClose }) => {
       
       {/* 3. Utility and Footer Items (Settings, Logout) */}
       <div className="p-4 px-2">
-        {utilityItems.map((item) => renderLink(item))}
+        {utilityItems.map((item, i) => (
+          item.isLogout ? (
+            <button 
+              key={i} 
+              onClick={handleLogout} 
+              className="flex items-center w-full text-left px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
+            >
+              <item.icon className="mr-2 w-5 h-5"/>
+              {item.name}
+            </button>
+          ) : (
+            <a key={i} href={item.path} className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors" onClick={onClose}>
+              <item.icon className="mr-2 w-5 h-5"/>
+              {item.name}
+            </a>
+          )
+        ))}
       </div>
     </div>
   );
