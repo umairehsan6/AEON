@@ -1,66 +1,93 @@
 import API from "../api/axios";
+import { refreshWithStoredToken } from "../api/axios";
+// safe jwt-decode import for ESM/CJS builds
+import * as jwtDecodeModule from "jwt-decode";
+const jwtDecode = jwtDecodeModule?.default ?? jwtDecodeModule;
 
 const SIGNUP_URL = "/api/user/signup/";
 const LOGIN_URL = "/api/user/login/";
 const LOGOUT_URL = "/api/user/logout/";
 
-export const signup = async (userData) => {
-  return API.post(SIGNUP_URL, userData); // no token required
-};
+let _refreshTimer = null;
+
+function scheduleRefreshFromAccess(access) {
+  if (!access) return;
+  try {
+    const payload = jwtDecode(access);
+    const exp = payload.exp; // seconds
+    const now = Math.floor(Date.now() / 1000);
+    const ms = Math.max((exp - now - 60) * 1000, 0); // refresh 60s early
+    if (_refreshTimer) clearTimeout(_refreshTimer);
+    _refreshTimer = setTimeout(async () => {
+      try {
+        await refreshWithStoredToken();
+        // reschedule using new token
+        const newAccess = localStorage.getItem("access_token");
+        if (newAccess) scheduleRefreshFromAccess(newAccess);
+      } catch (e) {
+        console.error("Proactive refresh failed:", e);
+        // cleanup on failure
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("user");
+        delete API.defaults.headers.common["Authorization"];
+      }
+    }, ms);
+  } catch (e) {
+    console.error("Failed to schedule refresh:", e);
+  }
+}
 
 export const login = async (credentials) => {
-  console.log('Making login request to:', LOGIN_URL);
-  console.log('With credentials:', credentials);
   const res = await API.post(LOGIN_URL, credentials);
-  console.log('Login API response:', res);
   const { access, refresh } = res.data || {};
   if (access && refresh) {
     localStorage.setItem("access_token", access);
     localStorage.setItem("refresh_token", refresh);
-    // Store user info from JWT token instead of response
+    API.defaults.headers.common["Authorization"] = `Bearer ${access}`;
+    scheduleRefreshFromAccess(access);
     try {
-      const { jwtDecode } = await import('jwt-decode');
       const decoded = jwtDecode(access);
-      localStorage.setItem("user", JSON.stringify({ 
-        username: decoded.username, 
-        first_name: decoded.first_name, 
-        last_name: decoded.last_name 
-      }));
-    } catch (error) {
-      console.error('Error decoding token:', error);
-    }
-    API.defaults.headers.common["Authorization"] = `Bearer ${access}`; // set AFTER login
-    console.log('Tokens stored successfully');
-  } else {
-    throw new Error('No access or refresh token received');
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          username: decoded.username,
+          first_name: decoded.first_name,
+          last_name: decoded.last_name,
+          role: decoded.role,
+        })
+      );
+    } catch {}
   }
   return res;
 };
 
+export const signup = (userData) => API.post(SIGNUP_URL, userData);
+
 export const logout = async (navigate = null) => {
+  // try logout endpoint but always clear local state
   try {
-    const refreshToken = localStorage.getItem("refresh_token");
-    if (refreshToken) {
-      const res = await API.post(LOGOUT_URL, { refresh: refreshToken });
-      console.log('Logout API response:', res);
-    }
-  } catch (error) {
-    console.error('Error calling logout API:', error);
-    // Continue with local logout even if API call fails
+    const refresh = localStorage.getItem("refresh_token");
+    if (refresh) await API.post(LOGOUT_URL, { refresh });
+  } catch (e) {
+    // ignore server errors
   } finally {
-    // Always clear local storage regardless of API call success
+    if (_refreshTimer) {
+      clearTimeout(_refreshTimer);
+      _refreshTimer = null;
+    }
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");
-    
-    // Clear axios default headers
     delete API.defaults.headers.common["Authorization"];
-    
-    console.log('Logout completed');
-    
-    // Navigate if navigate function is provided
-    if (navigate) {
-      navigate('/');
-    }
+    if (navigate) navigate("/login");
+  }
+};
+
+export const initAuth = () => {
+  const access = localStorage.getItem("access_token");
+  if (access) {
+    API.defaults.headers.common["Authorization"] = `Bearer ${access}`;
+    scheduleRefreshFromAccess(access);
   }
 };

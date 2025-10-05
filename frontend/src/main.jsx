@@ -12,7 +12,7 @@ import Signup from './components/signup2.jsx'
 import HomePage from './pages/home.jsx'
 import AdminPage from './pages/AdminPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
-
+import ProductManagement from './pages/ProoductManangment.jsx'
 const router = createBrowserRouter(createRoutesFromElements(
   <>
     <Route path='/' element={<Layout />}>
@@ -31,6 +31,7 @@ const router = createBrowserRouter(createRoutesFromElements(
       </ProtectedRoute>
     }>
       <Route path='' element={<AdminPage />} />
+      <Route path='product-management' element={<ProductManagement />} />
     </Route>
   </>
 ))

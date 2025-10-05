@@ -1,5 +1,5 @@
 import React from 'react'; 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, NavLink } from 'react-router-dom';
 import { logout } from '../services/auth';
 import { 
   LayoutDashboard,
@@ -20,14 +20,14 @@ const navItems = [
   {
     name: 'Dashboard',
     icon: LayoutDashboard,
-    path: '/dashboard',
+    path: '/admin',
     level: 0,
   },
   {
     // Consolidated the sub-items into a single primary link
-    name: 'Products', 
+    name: 'Products Management', 
     icon: Shirt,
-    path: '/products', // Primary path
+    path: '/admin/product-management', // Updated to match routing structure
     level: 0,
     // SubItems have been removed completely
   },
@@ -80,8 +80,6 @@ const utilityItems = [
  */
 export const AdminSidebar = ({ onClose }) => {
   const navigate = useNavigate();
-  // Hardcode the active path for visualization purposes, updated to reflect the new structure.
-  const currentPath = '/dashboard';
 
   const handleLogout = () => {
     logout(navigate);
@@ -91,7 +89,6 @@ export const AdminSidebar = ({ onClose }) => {
   const renderLink = (item) => { 
     // Uses the item's specific icon, or defaults to a gray circle if none is specified
     const Icon = item.icon || Circle; 
-    const isActive = item.path === currentPath;
 
     // Unified styling for all links
     const baseClasses = `
@@ -102,16 +99,20 @@ export const AdminSidebar = ({ onClose }) => {
     // High-contrast active state and hover effect for all links
     const activeClasses = 'bg-gray-900 text-white shadow-lg';
     const inactiveClasses = 'text-gray-700 hover:bg-gray-100'; 
-    const logoutClasses = 'mt-4 border-t border-gray-200 pt-4 text-red-600 hover:bg-red-50 hover:text-red-700';
     
-    // Combining classes for the final div element
-    const combinedClasses = `${baseClasses} ${isActive ? activeClasses : inactiveClasses} ${item.isLogout ? logoutClasses : ''}`;
-
     return (
-      <div key={item.path} className={combinedClasses}>
+      <NavLink
+        key={item.path}
+        to={item.path}
+        end={item.path === '/admin'} // Only match exactly for dashboard
+        className={({ isActive }) => 
+          `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`
+        }
+        onClick={onClose}
+      >
         <Icon className={`mr-4 w-5 h-5`} />
         <span>{item.name}</span>
-      </div>
+      </NavLink>
     );
   };
   
@@ -166,10 +167,21 @@ export const AdminSidebar = ({ onClose }) => {
               {item.name}
             </button>
           ) : (
-            <a key={i} href={item.path} className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors" onClick={onClose}>
+            <NavLink 
+              key={i} 
+              to={item.path} 
+              className={({ isActive }) => 
+                `flex items-center px-4 py-2 text-sm font-medium transition-colors ${
+                  isActive 
+                    ? 'text-gray-900 bg-gray-100' 
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`
+              }
+              onClick={onClose}
+            >
               <item.icon className="mr-2 w-5 h-5"/>
               {item.name}
-            </a>
+            </NavLink>
           )
         ))}
       </div>
