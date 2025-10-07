@@ -6,7 +6,7 @@ const SUBCATEGORY_URL = "/api/inventory/subcategories/";
 const PRODUCT_URL = "/api/inventory/products/";
 
 // Helper function to set authorization header
-const setAuthHeader = () => {
+export const setAuthHeader = () => {
     const token = localStorage.getItem("access_token");
     if (token) {
         API.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -19,7 +19,7 @@ const setAuthHeader = () => {
 };
 
 // Helper function to check if user is authenticated
-const checkAuth = () => {
+export const checkAuth = () => {
     const token = localStorage.getItem("access_token");
     if (!token) {
         throw new Error('No authentication token found. Please log in.');

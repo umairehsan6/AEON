@@ -16,9 +16,9 @@ const Hero = () => {
         <p className="text-sm md:text-base font-light tracking-wider uppercase mb-6">
           A new perspective on everyday style.
         </p>
-        <button className="border border-white text-white py-3 px-8 text-sm uppercase transition-colors duration-200 hover:bg-white hover:text-black">
+        <a href = "/products" className="border border-white text-white py-3 px-8 text-sm uppercase transition-colors duration-200 hover:bg-white hover:text-black">
           Shop Now
-        </button>
+        </a>
       </div>
     </div>
   );

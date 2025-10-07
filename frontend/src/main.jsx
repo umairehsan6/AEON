@@ -13,6 +13,9 @@ import HomePage from './pages/home.jsx'
 import AdminPage from './pages/AdminPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
 import ProductManagement from './pages/ProoductManangment.jsx'
+import Cart from './pages/cart.jsx'
+import ProductListPage from './pages/products.jsx'
+import Collection from './pages/Collection.jsx'
 const router = createBrowserRouter(createRoutesFromElements(
   <>
     <Route path='/' element={<Layout />}>
@@ -24,6 +27,12 @@ const router = createBrowserRouter(createRoutesFromElements(
           <ProfilePage />
         </ProtectedRoute>
       } />
+      <Route path='products' element={<ProductListPage />} />
+      <Route path='cart' element={
+        <ProtectedRoute>
+          <Cart />
+        </ProtectedRoute>
+      }/>
     </Route>
     <Route path='/admin' element={
       <ProtectedRoute requiredRole="admin">
@@ -32,6 +41,7 @@ const router = createBrowserRouter(createRoutesFromElements(
     }>
       <Route path='' element={<AdminPage />} />
       <Route path='product-management' element={<ProductManagement />} />
+      <Route path='collection' element={<Collection />} />
     </Route>
   </>
 ))

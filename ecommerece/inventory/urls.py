@@ -1,9 +1,9 @@
 from django.urls import path
 from .views import (
-    CategoryListCreateAPIView, CategoryDetailAPIView,
+    CategoryListCreateAPIView, CategoryDetailAPIView, CollectionListCreateAPIView,
     SubCategoryListCreateAPIView, SubCategoryDetailAPIView,
     ProductListCreateAPIView, ProductDetailAPIView,
-    SubCategoryByCategoryAPIView, ProductByCategoryAPIView, ProductBySubCategoryAPIView
+    SubCategoryByCategoryAPIView, ProductByCategoryAPIView, ProductBySubCategoryAPIView 
 )
 
 urlpatterns = [
@@ -21,4 +21,8 @@ urlpatterns = [
     path('products/<int:pk>/', ProductDetailAPIView.as_view(), name='product-detail'),
     path('categories/<int:category_id>/products/', ProductByCategoryAPIView.as_view(), name='product-by-category'),
     path('subcategories/<int:subcategory_id>/products/', ProductBySubCategoryAPIView.as_view(), name='product-by-subcategory'),
+
+    # Collection endpoints can be added here
+    path('collections/', CollectionListCreateAPIView.as_view(), name='collection-list-create'),
+    # path('collections/<int:pk>/', CollectionDetailAPIView.as_view(), name='collection-detail'),
 ]

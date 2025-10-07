@@ -8,7 +8,7 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
 
   // If no token, redirect to home
   if (!token) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   // If role is required and user doesn't have it, redirect to home

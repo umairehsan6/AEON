@@ -1,12 +1,13 @@
 from django.shortcuts import render, get_object_or_404
-from .models import Category, SubCategory, Product
-from .serializer import CategorySerializer, SubCategorySerializer, ProductSerializer
+from .models import Category, SubCategory, Product, Collection , CollectionProducts
+from .serializer import CategorySerializer, SubCategorySerializer, ProductSerializer , CollectionSerializer
 from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAdminUser, AllowAny
 from rest_framework.permissions import BasePermission
+
 
 # Custom permission class for admin-only write operations
 class IsAdminOrReadOnly(BasePermission):
@@ -15,7 +16,7 @@ class IsAdminOrReadOnly(BasePermission):
     """
     def has_permission(self, request, view):
         # Read permissions are allowed for any request
-        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+        if request.method in ['GET']:
             return True
         # Write permissions are only allowed to admin users
         return request.user and request.user.is_staff
@@ -167,3 +168,19 @@ class ProductBySubCategoryAPIView(APIView):
         products = Product.objects.filter(subcategory_id=subcategory_id)
         serializer = ProductSerializer(products, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+# Collection Views
+class CollectionListCreateAPIView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+    
+    def get(self, request, *args, **kwargs):
+        collections = Collection.objects.all()
+        serializer = CollectionSerializer(collections, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def post(self, request, *args, **kwargs):
+        serializer = CollectionSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

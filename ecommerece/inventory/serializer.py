@@ -1,6 +1,6 @@
 from .models import Category, SubCategory, Product
 from rest_framework import serializers
-
+from .models import Collection , CollectionProducts
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
@@ -51,4 +51,15 @@ class ProductSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("SubCategory must belong to the selected Category")
         
         return attrs
+    
 
+class CollectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Collection
+        fields = ['id', 'name', 'is_live', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    def validate(self, attrs):
+        name = attrs.get('name')
+        if Collection.objects.filter(name=name).exists():
+            raise serializers.ValidationError("Collection with this name already exists")
+        return attrs

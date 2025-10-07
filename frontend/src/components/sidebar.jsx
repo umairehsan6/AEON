@@ -32,9 +32,9 @@ const navItems = [
     // SubItems have been removed completely
   },
   {
-    name: 'Orders',
+    name: 'Collection',
     icon: ShoppingBag,
-    path: '/orders',
+    path: '/admin/collection',
     level: 0,
   },
   {
