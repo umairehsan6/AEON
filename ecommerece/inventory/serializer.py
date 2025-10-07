@@ -63,3 +63,10 @@ class CollectionSerializer(serializers.ModelSerializer):
         if Collection.objects.filter(name=name).exists():
             raise serializers.ValidationError("Collection with this name already exists")
         return attrs
+
+
+class CollectionProductsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CollectionProducts
+        fields = ['id', 'collection', 'product', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']

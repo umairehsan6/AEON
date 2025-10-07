@@ -1,18 +1,56 @@
-import React, { useState, useMemo } from 'react';
-import getCollections from '../services/collection';
+import React, { useState, useMemo, useEffect } from 'react';
+import { getCollections, updateCollection, setCollectionProducts, getCollectionProducts } from '../services/collection';
+import { getProducts } from '../services/inventory';
+import ProductAdminCard from '../components/ProductAdminCard';
 
-// --- MOCK DATA ---
-const COLLECTIONS = getCollections();
+// Data is fetched from API
 
 // --- The root component for the application ---
 const Collection = () => {
     // 1. Core State (Now local)
-    const [collections, setCollections] = useState(COLLECTIONS);
+    const [collections, setCollections] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     
     // 2. Navigation State: 'list' (default) or 'addProducts' (when navigating)
     const [view, setView] = useState('list');
     const [selectedCollection, setSelectedCollection] = useState(null);
+
+    // Fetch collections from API on mount
+    useEffect(() => {
+        let isMounted = true;
+        const fetchCollections = async () => {
+            try {
+                const response = await getCollections();
+                const data = Array.isArray(response?.data)
+                    ? response.data
+                    : (response?.data?.results || []);
+
+                const normalized = data.map((item) => ({
+                    id: item.id || item._id || String(item.pk ?? ''),
+                    name: item.name || item.title || 'Untitled',
+                    isLive: (item.isLive ?? item.is_live ?? false) === true,
+                    createdAt: item.createdAt
+                        ? new Date(item.createdAt)
+                        : item.created_at
+                        ? new Date(item.created_at)
+                        : new Date(),
+                }));
+
+                if (isMounted) setCollections(normalized);
+            } catch (error) {
+                console.error('Failed to load collections:', error);
+                if (isMounted) setCollections([]);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        fetchCollections();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     // --- Utility Function (Mock Backend ID generation) ---
     const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
@@ -35,12 +73,21 @@ const Collection = () => {
         setModalOpen(false);
     };
 
-    // 2. TOGGLE LIVE STATUS (Local State Update)
-    const handleToggleLive = (collectionId, currentStatus) => {
-        // Update the isLive status in the local collections array
+    // 2. TOGGLE LIVE STATUS (Call API with optimistic UI)
+    const handleToggleLive = async (collectionId, currentStatus) => {
+        const nextStatus = !currentStatus;
+        const prevCollections = collections;
+        // Optimistic UI
         setCollections(prev => prev.map(collection => 
-            collection.id === collectionId ? { ...collection, isLive: !currentStatus } : collection
+            collection.id === collectionId ? { ...collection, isLive: nextStatus } : collection
         ));
+        try {
+            await updateCollection(collectionId, { is_live: nextStatus });
+        } catch (error) {
+            console.error('Failed to update collection status:', error);
+            // Roll back on error
+            setCollections(prevCollections);
+        }
     };
 
     // 3. NAVIGATE TO ADD PRODUCTS PAGE
@@ -173,7 +220,13 @@ const Collection = () => {
 
             {/* List Body */}
             <div className="mt-4">
-                {collections.length === 0 ? (
+                {loading ? (
+                    <div className="text-center py-20 bg-gray-50 border border-dashed border-gray-300 rounded-lg">
+                        <p className="text-xl font-light tracking-wider text-gray-600">
+                            Loading collections...
+                        </p>
+                    </div>
+                ) : collections.length === 0 ? (
                     <div className="text-center py-20 bg-gray-50 border border-dashed border-gray-300 rounded-lg">
                         <p className="text-xl font-light tracking-wider text-gray-600">
                             No collections found. Start by creating one!
@@ -188,57 +241,104 @@ const Collection = () => {
                 )}
             </div>
             
-            <p className="text-xs text-center text-gray-400 mt-10">
-                User ID: MOCK_USER_ID (Frontend Only)
-            </p>
         </div>
     );
 
     // E. Simulated Add Products View
-    const AddProductsView = () => (
-        <div className="p-4 pt-10 md:p-10 max-w-7xl mx-auto">
-            <button
-                onClick={() => setView('list')}
-                className="mb-8 flex items-center space-x-2 text-sm uppercase tracking-widest text-black hover:text-gray-700 transition duration-150"
-            >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                <span>Back to Collections</span>
-            </button>
-            
-            <h2 className="text-3xl font-light tracking-widest uppercase border-b pb-4 mb-8">
-                Adding Products to: <span className="font-semibold">{selectedCollection.name}</span>
-            </h2>
+    const AddProductsView = () => {
+        const [allProducts, setAllProducts] = useState([]);
+        const [loadingProducts, setLoadingProducts] = useState(true);
+        const [selectedIds, setSelectedIds] = useState(new Set());
+        const [saving, setSaving] = useState(false);
 
-            {/* Simulated Content Area */}
-            <div className="py-10 bg-gray-50 p-6 rounded-lg text-center border">
-                <p className="text-lg text-gray-700 mb-4 tracking-wider">
-                    This is the dedicated product assignment page for the **{selectedCollection.name}** collection.
-                </p>
-                <p className="text-sm text-gray-500">
-                    You can integrate your backend API calls here to select, upload, and link products to this collection.
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                    Current Live Status: <span className={`font-bold ${selectedCollection.isLive ? 'text-green-600' : 'text-red-500'}`}>{selectedCollection.isLive ? 'LIVE' : 'DRAFT'}</span>
-                </p>
-            </div>
+        useEffect(() => {
+            let mounted = true;
+            const load = async () => {
+                try {
+                    // fetch all products
+                    const res = await getProducts();
+                    const list = Array.isArray(res?.data) ? res.data : (res?.data?.results || []);
+                    if (mounted) setAllProducts(list);
 
-            {/* Save Button Container */}
-            <div className="flex justify-end mt-8">
+                    // fetch products already in this collection and preselect
+                    const linksRes = await getCollectionProducts(selectedCollection.id);
+                    const links = Array.isArray(linksRes?.data) ? linksRes.data : (linksRes?.data?.results || []);
+                    const preselected = new Set(links.map(l => l.product));
+                    if (mounted) setSelectedIds(preselected);
+                } catch (e) {
+                    console.error('Failed to load products', e);
+                    if (mounted) setAllProducts([]);
+                } finally {
+                    if (mounted) setLoadingProducts(false);
+                }
+            };
+            load();
+            return () => { mounted = false; };
+        }, []);
+
+        const handleSelectChange = (productId, checked) => {
+            setSelectedIds(prev => {
+                const next = new Set(prev);
+                if (checked) next.add(productId); else next.delete(productId);
+                return next;
+            });
+        };
+
+        const handleSave = async () => {
+            if (selectedIds.size === 0) return;
+            setSaving(true);
+            try {
+                await setCollectionProducts(selectedCollection.id, Array.from(selectedIds));
+                setView('list');
+            } catch (e) {
+                console.error('Failed to set collection products', e);
+            } finally {
+                setSaving(false);
+            }
+        };
+
+        return (
+            <div className="p-4 pt-10 md:p-10 max-w-7xl mx-auto">
                 <button
-                    // Placeholder for future API call
-                    onClick={() => {
-                        console.log('--- API CALL SIMULATED ---');
-                        console.log('Collection:', selectedCollection.name);
-                        console.log('Data to be sent to backend for saving products.');
-                        // Add API call to your backend here
-                    }}
-                    className="px-8 py-3 text-sm uppercase tracking-widest bg-black text-white hover:bg-gray-800 transition duration-150 rounded-sm shadow-md"
+                    onClick={() => setView('list')}
+                    className="mb-8 flex items-center space-x-2 text-sm uppercase tracking-widest text-black hover:text-gray-700 transition duration-150"
                 >
-                    Save Products
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    <span>Back to Collections</span>
                 </button>
+                
+                <h2 className="text-3xl font-light tracking-widest uppercase border-b pb-4 mb-8">
+                    Adding Products to: <span className="font-semibold">{selectedCollection.name}</span>
+                </h2>
+
+                {loadingProducts ? (
+                    <div className="py-10 text-center">Loading products...</div>
+                ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {allProducts.map((p) => (
+                            <ProductAdminCard
+                                key={p.id}
+                                product={p}
+                                selectable
+                                selected={selectedIds.has(p.id)}
+                                onSelectChange={handleSelectChange}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex justify-end mt-8">
+                    <button
+                        onClick={handleSave}
+                        disabled={saving || selectedIds.size === 0}
+                        className="px-8 py-3 text-sm uppercase tracking-widest bg-black text-white hover:bg-gray-800 transition duration-150 rounded-sm shadow-md disabled:opacity-60"
+                    >
+                        {saving ? 'Saving...' : 'Save Products'}
+                    </button>
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
 
     // --- Main Render Logic ---

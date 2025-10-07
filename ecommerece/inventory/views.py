@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404
 from .models import Category, SubCategory, Product, Collection , CollectionProducts
-from .serializer import CategorySerializer, SubCategorySerializer, ProductSerializer , CollectionSerializer
+from .serializer import CategorySerializer, SubCategorySerializer, ProductSerializer , CollectionSerializer, CollectionProductsSerializer
 from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -184,3 +184,84 @@ class CollectionListCreateAPIView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class CollectionDetailAPIView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
+    def get_object(self, pk):
+        return get_object_or_404(Collection, pk=pk)
+
+    def get(self, request, pk, *args, **kwargs):
+        collection = self.get_object(pk)
+        serializer = CollectionSerializer(collection)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, pk, *args, **kwargs):
+        collection = self.get_object(pk)
+        serializer = CollectionSerializer(collection, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk, *args, **kwargs):
+        collection = self.get_object(pk)
+        serializer = CollectionSerializer(collection, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk, *args, **kwargs):
+        collection = self.get_object(pk)
+        collection.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CollectionProductsListCreateAPIView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
+    def get(self, request, collection_id, *args, **kwargs):
+        links = CollectionProducts.objects.filter(collection_id=collection_id)
+        serializer = CollectionProductsSerializer(links, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, collection_id, *args, **kwargs):
+        # Accepts list of product IDs or single mapping; avoid duplicates
+        data = request.data
+        created = []
+        from django.db import IntegrityError
+
+        def link_product(pid):
+            try:
+                link, was_created = CollectionProducts.objects.get_or_create(
+                    collection_id=collection_id, product_id=pid
+                )
+                if was_created:
+                    created.append(CollectionProductsSerializer(link).data)
+            except IntegrityError:
+                pass
+
+        if isinstance(data, dict) and 'product' in data:
+            link_product(data['product'])
+        elif isinstance(data, dict) and 'products' in data and isinstance(data['products'], list):
+            for pid in data['products']:
+                link_product(pid)
+        else:
+            return Response({'detail': 'Provide product or products list.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # If collection is live, mark linked products live as well
+        collection = Collection.objects.get(pk=collection_id)
+        if collection.is_live:
+            Product.objects.filter(id__in=[item['product'] for item in created]).update(is_live=True)
+
+        return Response(created, status=status.HTTP_201_CREATED)
+
+
+class CollectionProductsDeleteAPIView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
+    def delete(self, request, collection_id, product_id, *args, **kwargs):
+        link = get_object_or_404(CollectionProducts, collection_id=collection_id, product_id=product_id)
+        link.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

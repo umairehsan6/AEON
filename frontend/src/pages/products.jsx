@@ -1,18 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import ProductUserCard from '../components/ProductUserCard';
+import { getProducts } from '../services/inventory';
 
-// --- MOCK DATA (Simulating Django Backend Output) ---
-// Note: MOCK_CATEGORIES are kept for data consistency but are not used for filtering 
-// in this simplified view, as per the user's latest request.
-const MOCK_PRODUCTS = [
-    { id: 101, name: 'KNIT MAXI DRESS', price: 69.90, category_slug: 'tops', subcategory_slug: 'sweaters', color: 'BEIGE', stock: 15, date: '2025-10-01', sizes_available: ['XS', 'S', 'M', 'L'] },
-    { id: 102, name: 'OVERSIZE LINEN SHIRT', price: 45.90, category_slug: 'tops', subcategory_slug: 't-shirts', color: 'WHITE', stock: 22, date: '2025-10-03', sizes_available: ['S', 'M', 'L', 'XL'] },
-    { id: 103, name: 'HIGH-WAISTED SLIM JEANS', price: 59.90, category_slug: 'bottoms', subcategory_slug: 'jeans', color: 'DARK WASH', stock: 18, date: '2025-09-28', sizes_available: ['28', '30', '32', '34'] },
-    { id: 104, name: 'WOOL BLEND SWEATER', price: 89.90, category_slug: 'tops', subcategory_slug: 'sweaters', color: 'BLACK', stock: 10, date: '2025-10-04', sizes_available: ['M', 'L', 'XL'] },
-    { id: 105, name: 'FAUX LEATHER SKIRT', price: 39.90, category_slug: 'bottoms', subcategory_slug: 'skirts', color: 'BLACK', stock: 30, date: '2025-10-02', sizes_available: ['XS', 'S', 'M'] },
-    { id: 106, name: 'BASIC COTTON TEE', price: 15.90, category_slug: 'tops', subcategory_slug: 't-shirts', color: 'GRAY', stock: 45, date: '2025-09-25', sizes_available: ['S', 'M', 'L', 'XL'] },
-    { id: 107, name: 'MINIMALIST CROSSBODY BAG', price: 79.90, category_slug: 'accessories', subcategory_slug: 'bags', color: 'WHITE', stock: 12, date: '2025-10-05', sizes_available: ['ONE SIZE'] },
-    { id: 108, name: 'DELICATE CHAIN NECKLACE', price: 22.90, category_slug: 'accessories', subcategory_slug: 'jewelry', color: 'GOLD', stock: 50, date: '2025-09-30', sizes_available: ['ADJUSTABLE'] },
-];
+// Products are fetched from backend
 
 /**
  * Custom hook to manage the state and logic for the Add to Cart button feedback.
@@ -40,76 +30,6 @@ const useCartFeedback = (productId) => {
 };
 
 
-/**
- * Renders a single product card with image, price, size selector, and add-to-cart button.
- */
-const ProductCard = ({ product }) => {
-    const [selectedSize, setSelectedSize] = useState(product.sizes_available[0]);
-    const { feedback, isAdding, handleAction } = useCartFeedback(product.id);
-    
-    // Placeholder Image URL logic (moved to component scope)
-    const imageSize = 400;
-    const bgColor = product.color.includes('BLACK') ? '000' : 'EBEBEB';
-    const textColor = product.color.includes('BLACK') ? 'FFF' : '000';
-    const placeholderText = product.name.split(' ').slice(0, 2).join(' ');
-    const imageUrl = `https://placehold.co/${imageSize}x${imageSize}/${bgColor}/${textColor}?text=${placeholderText}`;
-
-    const buttonClass = isAdding
-        ? 'bg-green-600 text-white border-green-600 pointer-events-none'
-        : 'bg-white text-black border-black hover:bg-black hover:text-white';
-
-    const handleSelectChange = (e) => {
-        setSelectedSize(e.target.value);
-    };
-
-    return (
-        <div className="product-card group cursor-pointer">
-            <div className="relative w-full aspect-square bg-gray-50 mb-3 overflow-hidden shadow-sm">
-                <img 
-                    src={imageUrl} 
-                    alt={product.name} 
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                    onError={(e) => e.target.src = `https://placehold.co/${imageSize}x${imageSize}/FFF/000?text=NO+IMAGE`}
-                />
-                <div className="absolute inset-x-0 bottom-0 py-1.5 text-center bg-white/80 backdrop-blur-sm text-xs font-medium tracking-wider uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    View Details
-                </div>
-            </div>
-            <div className="text-left py-1">
-                <p className="text-sm uppercase font-normal tracking-wide">{product.name}</p>
-                <p className="text-sm font-bold mt-0.5 mb-2">${product.price.toFixed(2)}</p>
-                
-                {/* Size Selector */}
-                <div className="mb-3">
-                    <select 
-                        value={selectedSize}
-                        onChange={handleSelectChange}
-                        className="w-full border border-black text-black text-xs py-2 px-2 uppercase appearance-none bg-white focus:ring-1 focus:ring-black focus:border-black transition duration-200"
-                        style={{
-                            backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z'/%3E%3C/svg%3E")`,
-                            backgroundRepeat: 'no-repeat',
-                            backgroundPosition: 'right 0.7rem center',
-                            backgroundSize: '0.8em',
-                        }}
-                    >
-                        {product.sizes_available.map(size => (
-                            <option key={size} value={size}>{size}</option>
-                        ))}
-                    </select>
-                </div>
-                
-                {/* Add to Cart Button */}
-                <button 
-                    onClick={() => handleAction(selectedSize)}
-                    disabled={isAdding}
-                    className={`add-to-cart-btn w-full border text-xs py-2 tracking-widest uppercase transition duration-200 rounded-none ${buttonClass}`}
-                >
-                    {feedback}
-                </button>
-            </div>
-        </div>
-    );
-};
 
 
 /**
@@ -118,8 +38,10 @@ const ProductCard = ({ product }) => {
 const ProductListPage = () => {
     // State for the currently selected sort option
     const [sortOption, setSortOption] = useState('recent');
-    // State for the products currently displayed in the grid
+    // Source products (from API) and displayed products (after sort)
+    const [allProducts, setAllProducts] = useState([]);
     const [displayedProducts, setDisplayedProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
     
     // Memoized sorting function to optimize performance
     const handleSort = useMemo(() => {
@@ -141,11 +63,55 @@ const ProductListPage = () => {
         };
     }, [sortOption]);
 
-    // Effect to re-sort and update the displayed products whenever the sort option changes
+    // Load all products from backend once
     useEffect(() => {
-        const sorted = handleSort(MOCK_PRODUCTS);
+        let mounted = true;
+        const load = async () => {
+            try {
+                const res = await getProducts();
+                const data = Array.isArray(res?.data) ? res.data : (res?.data?.results || []);
+                // Normalize minimal fields expected by ProductUserCard
+                const normalized = data.map(p => {
+                    let sizesArray = ['ONE SIZE'];
+                    const sizes = p.sizes ?? p.sizes_available;
+                    if (Array.isArray(sizes)) {
+                        // Could be array of strings or array of objects { size, quantity }
+                        if (sizes.length > 0 && typeof sizes[0] === 'object') {
+                            sizesArray = sizes.map(s => String(s.size ?? s.label ?? 'ONE'));
+                        } else {
+                            sizesArray = sizes.map(s => String(s));
+                        }
+                    } else if (sizes && typeof sizes === 'object') {
+                        // Object map like { S: 10, M: 5 }
+                        sizesArray = Object.keys(sizes);
+                    }
+
+                    return {
+                        id: p.id,
+                        name: p.name,
+                        price: Number(p.price || 0),
+                        color: p.color || 'WHITE',
+                        sizes_available: sizesArray,
+                        date: p.created_at || p.date || new Date().toISOString(),
+                    };
+                });
+                if (mounted) setAllProducts(normalized);
+            } catch (e) {
+                console.error('Failed to load products', e);
+                if (mounted) setAllProducts([]);
+            } finally {
+                if (mounted) setLoading(false);
+            }
+        };
+        load();
+        return () => { mounted = false; };
+    }, []);
+
+    // Recompute displayed products when sort option or data changes
+    useEffect(() => {
+        const sorted = handleSort(allProducts);
         setDisplayedProducts(sorted);
-    }, [sortOption, handleSort]);
+    }, [allProducts, sortOption, handleSort]);
 
     const handleSortChange = (e) => {
         setSortOption(e.target.value);
@@ -190,10 +156,14 @@ const ProductListPage = () => {
                 </div>
 
                 {/* Product Grid */}
-                {displayedProducts.length > 0 ? (
-                    <div id="product-grid" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 md:gap-8">
+                {loading ? (
+                    <div className="text-center py-20">
+                        <h2 className="text-xl font-light tracking-wider mb-2">LOADING PRODUCTS...</h2>
+                    </div>
+                ) : displayedProducts.length > 0 ? (
+                    <div id="product-grid" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl-grid-cols-5 gap-4 sm:gap-6 md:gap-8">
                         {displayedProducts.map(product => (
-                            <ProductCard key={product.id} product={product} />
+                            <ProductUserCard key={product.id} product={product} />
                         ))}
                     </div>
                 ) : (

@@ -1,9 +1,10 @@
 from django.urls import path
 from .views import (
-    CategoryListCreateAPIView, CategoryDetailAPIView, CollectionListCreateAPIView,
+    CategoryListCreateAPIView, CategoryDetailAPIView, CollectionListCreateAPIView, CollectionDetailAPIView,
     SubCategoryListCreateAPIView, SubCategoryDetailAPIView,
     ProductListCreateAPIView, ProductDetailAPIView,
-    SubCategoryByCategoryAPIView, ProductByCategoryAPIView, ProductBySubCategoryAPIView 
+    SubCategoryByCategoryAPIView, ProductByCategoryAPIView, ProductBySubCategoryAPIView,
+    CollectionProductsListCreateAPIView, CollectionProductsDeleteAPIView
 )
 
 urlpatterns = [
@@ -22,7 +23,9 @@ urlpatterns = [
     path('categories/<int:category_id>/products/', ProductByCategoryAPIView.as_view(), name='product-by-category'),
     path('subcategories/<int:subcategory_id>/products/', ProductBySubCategoryAPIView.as_view(), name='product-by-subcategory'),
 
-    # Collection endpoints can be added here
+    # Collection endpoints
     path('collections/', CollectionListCreateAPIView.as_view(), name='collection-list-create'),
-    # path('collections/<int:pk>/', CollectionDetailAPIView.as_view(), name='collection-detail'),
+    path('collections/<int:pk>/', CollectionDetailAPIView.as_view(), name='collection-detail'),
+    path('collections/<int:collection_id>/products/', CollectionProductsListCreateAPIView.as_view(), name='collection-products-list-create'),
+    path('collections/<int:collection_id>/products/<int:product_id>/', CollectionProductsDeleteAPIView.as_view(), name='collection-products-delete'),
 ]

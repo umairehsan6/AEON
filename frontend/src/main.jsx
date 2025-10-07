@@ -6,7 +6,7 @@ import { createBrowserRouter, RouterProvider, Route, createRoutesFromElements } 
 import Layout from './layouts/layout.jsx'
 import AdminLayout from './layouts/AdminLayout.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
-import Home from './components/homepages.jsx'
+// import Home from './components/homepages.jsx'
 import Login from './components/login.jsx'
 import Signup from './components/signup2.jsx'
 import HomePage from './pages/home.jsx'
