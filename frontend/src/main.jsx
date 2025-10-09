@@ -15,7 +15,12 @@ import ProfilePage from './pages/ProfilePage.jsx'
 import ProductManagement from './pages/ProoductManangment.jsx'
 import Cart from './pages/cart.jsx'
 import ProductListPage from './pages/products.jsx'
+import ProductPage from './pages/Productpage.jsx'
 import Collection from './pages/Collection.jsx'
+import CheckoutPage from './pages/Checkout.jsx'
+import OrdersPage from './pages/Orders.jsx'
+import DashboardPage from './pages/Dashboard.jsx'
+import { CartProvider } from './context/CartContext.jsx'
 const router = createBrowserRouter(createRoutesFromElements(
   <>
     <Route path='/' element={<Layout />}>
@@ -27,7 +32,13 @@ const router = createBrowserRouter(createRoutesFromElements(
           <ProfilePage />
         </ProtectedRoute>
       } />
+      <Route path='orders' element={
+        <ProtectedRoute>
+          <OrdersPage />
+        </ProtectedRoute>
+      } />
       <Route path='products' element={<ProductListPage />} />
+      <Route path='product/:id' element={<ProductPage />} />
       <Route path='cart' element={
         <ProtectedRoute>
           <Cart />
@@ -39,10 +50,13 @@ const router = createBrowserRouter(createRoutesFromElements(
         <AdminLayout />
       </ProtectedRoute>
     }>
-      <Route path='' element={<AdminPage />} />
+      <Route path='' element={<DashboardPage />} />
+      <Route path='dashboard' element={<DashboardPage />} />
+      <Route path='orders' element={<OrdersPage />} />
       <Route path='product-management' element={<ProductManagement />} />
       <Route path='collection' element={<Collection />} />
     </Route>
+    <Route path='/checkout' element={<CheckoutPage />} />
   </>
 ))
 
@@ -50,6 +64,8 @@ const router = createBrowserRouter(createRoutesFromElements(
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <CartProvider>
+      <RouterProvider router={router} />
+    </CartProvider>
   </StrictMode>,
 )

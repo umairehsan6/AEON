@@ -1,5 +1,7 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Trash2 } from 'lucide-react'; // Using Lucide for a clean icon
+import { getCart, updateCartItem, removeCartItem, checkoutCart } from '../services/cart';
 
 // --- Configuration ---
 const SHIPPING_COST = 15.00;
@@ -27,13 +29,8 @@ const formatCurrency = (amount) => {
     return '$' + amount.toFixed(2);
 };
 
-// --- Initial Mock Data ---
-// Added isSelected: true property for default selection
-const initialCartData = [
-    { id: 1, name: "Ribbed High-Neck Sweater", color: "Black", size: "M", price: 69.90, quantity: 1, imageUrl: "https://placehold.co/150x200/000000/FFFFFF?text=SWEATER", isSelected: true },
-    { id: 2, name: "Structured Mini Skirt", color: "Cream", size: "S", price: 49.90, quantity: 2, imageUrl: "https://placehold.co/150x200/F5F5F5/333333?text=SKIRT", isSelected: true },
-    { id: 3, name: "Oversized Linen Blazer", color: "Khaki", size: "L", price: 129.00, quantity: 1, imageUrl: "https://placehold.co/150x200/D3D3D3/000000?text=BLAZER", isSelected: true },
-];
+// --- Helpers ---
+const placeholderFor = (text) => `https://placehold.co/150x200/000000/FFFFFF?text=${encodeURIComponent(text)}`;
 
 // --- Cart Item Component ---
 const CartItem = React.memo(({ item, updateQuantity, removeItem, toggleSelection }) => {
@@ -121,7 +118,8 @@ const CartItem = React.memo(({ item, updateQuantity, removeItem, toggleSelection
 
 // --- Main Application Component ---
 export default function Cart() {
-    const [cartItems, setCartItems] = useState(initialCartData);
+    const navigate = useNavigate();
+    const [cartItems, setCartItems] = useState([]);
     const [message, setMessage] = useState(null);
     const [messageStyle, setMessageStyle] = useState("bg-green-100 text-green-700");
 
@@ -130,6 +128,31 @@ export default function Cart() {
         '--zara-black': customStyles.zaraBlack,
         '--zara-medium-gray': customStyles.zaraMediumGray,
     };
+    // Load cart from backend
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const res = await getCart();
+                const items = Array.isArray(res?.data?.items) ? res.data.items : [];
+                const normalized = items.map(i => ({
+                    id: i.id,
+                    name: i.product_detail?.name || 'Product',
+                    color: i.product_detail?.color || 'BLACK',
+                    size: i.size || 'ONE',
+                    price: Number(i.price_at_add || i.product_detail?.price || 0),
+                    quantity: Number(i.quantity || 1),
+                    imageUrl: placeholderFor(i.product_detail?.name || 'ITEM'),
+                    isSelected: true,
+                }));
+                if (mounted) setCartItems(normalized);
+            } catch (e) {
+                console.error('Failed to load cart', e);
+            }
+        })();
+        return () => { mounted = false; };
+    }, []);
+
 
     /**
      * Displays a temporary message at the bottom.
@@ -187,38 +210,47 @@ export default function Cart() {
     /**
      * Removes an item from the cart.
      */
-    const removeItem = useCallback((id) => {
-        const itemToRemove = cartItems.find(item => item.id === id);
-        setCartItems(prevItems => prevItems.filter(item => item.id !== id));
-        showMessage(`${itemToRemove ? itemToRemove.name : 'Item'} removed.`, "bg-red-100 text-red-700");
+    const removeItem = useCallback(async (id) => {
+        try {
+            await removeCartItem(id);
+            const itemToRemove = cartItems.find(item => item.id === id);
+            setCartItems(prevItems => prevItems.filter(item => item.id !== id));
+            showMessage(`${itemToRemove ? itemToRemove.name : 'Item'} removed.`, "bg-red-100 text-red-700");
+        } catch (e) {
+            console.error('Failed to remove item', e);
+        }
     }, [cartItems]);
 
 
     /**
      * Updates the quantity of a specific item.
      */
-    const updateQuantity = useCallback((id, newQuantity) => {
+    const updateQuantity = useCallback(async (id, newQuantity) => {
         if (newQuantity < 1) {
             removeItem(id);
             return;
         }
-
-        setCartItems(prevItems => {
-            const itemToUpdate = prevItems.find(item => item.id === id);
-            if (itemToUpdate && itemToUpdate.quantity !== newQuantity) {
-                 showMessage(`Quantity updated for ${itemToUpdate.name}.`, 'bg-blue-100 text-blue-700');
-                 return prevItems.map(item =>
-                    item.id === id ? { ...item, quantity: newQuantity } : item
-                );
-            }
-            return prevItems;
-        });
+        try {
+            await updateCartItem(id, newQuantity);
+            setCartItems(prevItems => {
+                const itemToUpdate = prevItems.find(item => item.id === id);
+                if (itemToUpdate && itemToUpdate.quantity !== newQuantity) {
+                    showMessage(`Quantity updated for ${itemToUpdate.name}.`, 'bg-blue-100 text-blue-700');
+                    return prevItems.map(item =>
+                        item.id === id ? { ...item, quantity: newQuantity } : item
+                    );
+                }
+                return prevItems;
+            });
+        } catch (e) {
+            console.error('Failed to update item quantity', e);
+        }
     }, [removeItem]);
 
-    const handleCheckout = () => {
-        const selectedUniqueItems = cartItems.filter(item => item.isSelected).length;
-        if (selectedUniqueItems > 0) {
-            showMessage(`Proceeding to payment stage with ${summaryData.totalSelectedItems} items (Total: ${formatCurrency(summaryData.total)}).`, 'bg-green-100 text-green-700');
+    const handleCheckout = async () => {
+        const selected = cartItems.filter(item => item.isSelected).map(i => i.id);
+        if (selected.length > 0) {
+            navigate('/checkout');
         } else {
             showMessage("Please select at least one item to proceed to checkout.", "bg-red-100 text-red-700");
         }

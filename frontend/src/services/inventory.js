@@ -105,6 +105,11 @@ export const getProducts = async () => {
     return API.get(PRODUCT_URL);
 };
 
+export const getProductById = async (id) => {
+    // GET requests are public, no auth required
+    return API.get(`${PRODUCT_URL}${id}/`);
+};
+
 export const getProductsByCategory = async (categoryId) => {
     // GET requests are public, no auth required
     return API.get(`${CATEGORY_URL}${categoryId}/products/`);

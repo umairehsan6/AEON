@@ -92,6 +92,8 @@ const ProductListPage = () => {
                         price: Number(p.price || 0),
                         color: p.color || 'WHITE',
                         sizes_available: sizesArray,
+                        sizes: p.sizes,
+                        total_stock_by_sizes: p.total_stock_by_sizes,
                         date: p.created_at || p.date || new Date().toISOString(),
                     };
                 });

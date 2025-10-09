@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
+import { useCart } from '../context/CartContext';
+import { getUserInfo, getUserRole } from '../services/authutils';
+import { logout } from '../services/auth';
 // NOTE: NavLink import removed to prevent console errors if component is not
 // rendered inside a <BrowserRouter> or other Router component.
 // All instances replaced with <a> tags.
 
 function Header() {
+  const { count } = useCart();
   // State to control the visibility of the sidebar
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   // State to control which main accordion section (WOMEN/MAN/KIDS) is open
@@ -11,6 +15,11 @@ function Header() {
   // State to control which nested accordion section (e.g., CLOTHING) is open
   // This uses a unique ID like 'WOMEN-CLOTHING'
   const [openNestedSection, setOpenNestedSection] = useState(null);
+
+  // Get user authentication info
+  const userInfo = getUserInfo();
+  const userRole = getUserRole();
+  const isAuthenticated = !!userInfo;
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -31,6 +40,12 @@ function Header() {
   const toggleNestedSection = (id) => {
     // If the clicked nested section is already open, close it, otherwise open the new section
     setOpenNestedSection(openNestedSection === id ? null : id);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setIsSidebarOpen(false);
+    window.location.href = '/';
   };
 
 
@@ -132,21 +147,31 @@ function Header() {
             </a>
         </div>
 
-        {/* RIGHT SIDE: Actions (Login & Cart) */}
+        {/* RIGHT SIDE: Actions (Login/Profile & Cart) */}
         <div className="flex items-center space-x-6 md:space-x-8">
           
-          <a 
-            href="/login" 
-            className="font-light text-sm tracking-wide uppercase hover:underline hover:text-gray-700 transition-all duration-200"
-          >
-            LOGIN
-          </a>
+          {isAuthenticated ? (
+            <a 
+              href="/profile" 
+              className="font-light text-sm tracking-wide uppercase hover:underline hover:text-gray-700 transition-all duration-200"
+            >
+              {userInfo?.first_name ? userInfo.first_name.toUpperCase() : 'PROFILE'}
+            </a>
+          ) : (
+            <a 
+              href="/login" 
+              className="font-light text-sm tracking-wide uppercase hover:underline hover:text-gray-700 transition-all duration-200"
+            >
+              LOGIN
+            </a>
+          )}
+          
           {/* Cart Icon - Using text as requested */}
           <a 
             href="/cart" 
             className="font-light text-sm tracking-wide uppercase hover:underline hover:text-gray-700 transition-all duration-200"
           >
-            CART
+            CART{count > 0 ? ` (${count})` : ''}
           </a>
         </div>
       </header>
@@ -282,8 +307,23 @@ function Header() {
             })}
           </div>
           
+          {/* User Account Links - Only show if authenticated */}
+          {isAuthenticated && (
+            <div className="mt-16 pt-6 border-t border-gray-100 space-y-2">
+              <a href="/profile" onClick={toggleSidebar} className="block text-sm font-light uppercase tracking-wider text-gray-500 hover:text-black transition-colors duration-200 py-1">
+                  PROFILE
+              </a>
+              <a href="/orders" onClick={toggleSidebar} className="block text-sm font-light uppercase tracking-wider text-gray-500 hover:text-black transition-colors duration-200 py-1">
+                  MY ORDERS
+              </a>
+              <button onClick={handleLogout} className="block text-sm font-light uppercase tracking-wider text-gray-500 hover:text-black transition-colors duration-200 py-1 w-full text-left">
+                  LOGOUT
+              </button>
+            </div>
+          )}
+
           {/* Footer links for help/stores */}
-          <div className="mt-16 pt-6 border-t border-gray-100 space-y-2">
+          <div className="mt-8 pt-6 border-t border-gray-100 space-y-2">
             <a href="/help" onClick={toggleSidebar} className="block text-sm font-light uppercase tracking-wider text-gray-500 hover:text-black transition-colors duration-200 py-1">
                 HELP
             </a>

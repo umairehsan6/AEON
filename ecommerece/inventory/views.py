@@ -133,7 +133,58 @@ class ProductDetailAPIView(APIView):
     
     def put(self, request, pk, *args, **kwargs):
         product = self.get_object(pk)
-        serializer = ProductSerializer(product, data=request.data)
+        
+        # Check if we need to add new inventory instead of replacing
+        new_inventory_to_add = request.data.get('new_inventory_to_add', [])
+        
+        if new_inventory_to_add:
+            print(f"Adding new inventory to product {product.name}: {new_inventory_to_add}")
+            
+            # Handle adding new inventory to existing stock
+            if isinstance(product.total_stock_by_sizes, list):
+                # Handle list format: [{"size": "XS", "quantity": 10}, {"size": "S", "quantity": 10}]
+                updated_stock_list = list(product.total_stock_by_sizes)
+                
+                for new_item in new_inventory_to_add:
+                    size = new_item.get('size')
+                    quantity_to_add = int(new_item.get('quantity', 0))
+                    
+                    if size and quantity_to_add > 0:
+                        # Find existing size in the list
+                        size_found = False
+                        for i, stock_item in enumerate(updated_stock_list):
+                            if isinstance(stock_item, dict) and stock_item.get('size') == size:
+                                # Add to existing quantity
+                                current_qty = int(stock_item.get('quantity', 0))
+                                updated_stock_list[i] = {'size': size, 'quantity': current_qty + quantity_to_add}
+                                print(f"Added {quantity_to_add} to {size}: {current_qty} -> {current_qty + quantity_to_add}")
+                                size_found = True
+                                break
+                        
+                        if not size_found:
+                            # Add new size to the list
+                            updated_stock_list.append({'size': size, 'quantity': quantity_to_add})
+                            print(f"Added new size {size} with quantity {quantity_to_add}")
+                
+                # Update the product with new stock
+                product.total_stock_by_sizes = updated_stock_list
+                product.save()
+                
+                print(f"Updated product stock: {product.total_stock_by_sizes}")
+                
+                # Remove the new_inventory_to_add from request data before serializing
+                request_data = request.data.copy()
+                request_data.pop('new_inventory_to_add', None)
+                request_data['total_stock_by_sizes'] = updated_stock_list
+                
+                serializer = ProductSerializer(product, data=request_data)
+            else:
+                # Handle dict format or fallback to normal update
+                serializer = ProductSerializer(product, data=request.data)
+        else:
+            # Normal update without adding inventory
+            serializer = ProductSerializer(product, data=request.data)
+        
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)

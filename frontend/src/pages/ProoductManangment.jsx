@@ -77,14 +77,43 @@ const getActiveSizes = (genderKey, isAccessory, categoryKey) => {
  * Modal Component for Editing an existing Product.
  */
 const EditProductModal = ({ product, categories, onSave, onClose }) => {
-    const [name, setName] = useState(product.name);
-    const [price, setPrice] = useState(product.price.toString());
-    const [categoryKey, setCategoryKey] = useState(product.category);
-    const [subcategoryKey, setSubcategoryKey] = useState(product.subcategory || '');
-    const [genderKey] = useState(product.gender); // Gender is fixed for existing products
-    const [color, setColor] = useState(product.color);
-    const [isLive, setIsLive] = useState(product.isLive);
-    const [imageUrl, setImageUrl] = useState(product.imageUrl || '');
+    // Handle both API data structure and legacy mock data structure
+    const [name, setName] = useState(product.name || '');
+    const [price, setPrice] = useState((product.price || 0).toString());
+    
+    // Handle category - API returns category ID, we need to find the key
+    const [categoryKey, setCategoryKey] = useState(() => {
+        if (product.category_name) {
+            // API data - find category by name
+            const category = categories.find(cat => cat.name === product.category_name);
+            return category ? category.key : '';
+        } else if (product.category) {
+            // Legacy mock data - use directly
+            return product.category;
+        }
+        return '';
+    });
+    
+    // Handle subcategory - API returns subcategory ID, we need to find the key
+    const [subcategoryKey, setSubcategoryKey] = useState(() => {
+        if (product.subcategory_name) {
+            // API data - find subcategory by name
+            const currentCategory = categories.find(cat => cat.name === product.category_name);
+            if (currentCategory) {
+                const subcategory = currentCategory.subcategories.find(sub => sub.name === product.subcategory_name);
+                return subcategory ? subcategory.key : '';
+            }
+        } else if (product.subcategory) {
+            // Legacy mock data - use directly
+            return product.subcategory;
+        }
+        return '';
+    });
+    
+    const [genderKey] = useState(product.gender || ''); // Gender is fixed for existing products
+    const [color, setColor] = useState(product.color || '');
+    const [isLive, setIsLive] = useState(product.is_live !== undefined ? product.is_live : (product.isLive || false));
+    const [imageUrl, setImageUrl] = useState(product.image_url || product.imageUrl || '');
     const [description, setDescription] = useState(product.description || '');
 
     const isAccessory = categoryKey === 'accessories';
@@ -94,26 +123,56 @@ const EditProductModal = ({ product, categories, onSave, onClose }) => {
     // Determine the active size list and initialize quantities based on current product data
     const activeSizes = getActiveSizes(genderKey, isAccessory, categoryKey);
     
-    const [sizeQuantities, setSizeQuantities] = useState(() => {
-        const stockMap = product.sizes.reduce((acc, s) => ({
-            ...acc,
-            [s.size]: s.quantity
-        }), {});
+    // Separate state for existing inventory (read-only) and new inventory to add
+    const [existingInventory, setExistingInventory] = useState(() => {
+        // Handle different data formats for sizes
+        let stockMap = {};
         
-        // Populate current quantities, defaulting to 0 for sizes in the set that weren't stocked
+        // API data uses total_stock_by_sizes, legacy data uses sizes
+        const stockData = product.total_stock_by_sizes || product.sizes;
+        
+        if (Array.isArray(stockData)) {
+            // Handle list format: [{"size": "XS", "quantity": 10}, {"size": "S", "quantity": 10}]
+            stockMap = stockData.reduce((acc, s) => {
+                if (s && typeof s === 'object' && s.size && s.quantity !== undefined) {
+                    acc[s.size] = s.quantity;
+                }
+                return acc;
+            }, {});
+        } else if (typeof stockData === 'object' && stockData !== null) {
+            // Handle dict format: {"XS": 10, "S": 10}
+            stockMap = stockData;
+        }
+        
+        console.log('EditProductModal - Product data:', product);
+        console.log('EditProductModal - Stock data (total_stock_by_sizes):', product.total_stock_by_sizes);
+        console.log('EditProductModal - Stock data (sizes):', product.sizes);
+        console.log('EditProductModal - Parsed existing inventory:', stockMap);
+        
+        return stockMap;
+    });
+
+    // New state for adding inventory (starts at 0 for all sizes)
+    const [newInventory, setNewInventory] = useState(() => {
         return activeSizes.reduce((acc, size) => ({
             ...acc,
-            [size]: stockMap[size] || 0
+            [size]: 0
         }), {});
     });
     
-    // Calculate total stock automatically
-    const totalStock = activeSizes.reduce((sum, size) => sum + (parseInt(sizeQuantities[size]) || 0), 0);
+    // Calculate total existing stock and total new inventory to add
+    const totalExistingStock = activeSizes.reduce((sum, size) => sum + (parseInt(existingInventory[size]) || 0), 0);
+    const totalNewInventory = activeSizes.reduce((sum, size) => sum + (parseInt(newInventory[size]) || 0), 0);
+    const totalStockAfterUpdate = totalExistingStock + totalNewInventory;
+    
+    console.log('EditProductModal - totalExistingStock:', totalExistingStock);
+    console.log('EditProductModal - totalNewInventory:', totalNewInventory);
+    console.log('EditProductModal - totalStockAfterUpdate:', totalStockAfterUpdate);
 
-    // Handler for quantity change
-    const handleQuantityChange = (size, value) => {
+    // Handler for new inventory quantity change
+    const handleNewInventoryChange = (size, value) => {
         const sanitizedValue = value === '' ? '' : Math.max(0, parseInt(value) || 0); 
-        setSizeQuantities(prev => ({
+        setNewInventory(prev => ({
             ...prev,
             [size]: sanitizedValue,
         }));
@@ -123,15 +182,21 @@ const EditProductModal = ({ product, categories, onSave, onClose }) => {
         e.preventDefault();
 
         // Basic validation
-        if (!name.trim() || !price || !categoryKey || !genderKey || !color.trim() || totalStock === 0) {
-            console.error("Please ensure all required fields are filled and stock is greater than 0.");
+        if (!name.trim() || !price || !categoryKey || !genderKey || !color.trim()) {
+            console.error("Please ensure all required fields are filled.");
             return;
         }
 
-        // Format sizes and quantities for saving
-        const sizesToSave = activeSizes
-            .map(size => ({ size, quantity: parseInt(sizeQuantities[size]) || 0 }))
+        // Format new inventory to add (only sizes with quantity > 0)
+        const newInventoryToAdd = activeSizes
+            .map(size => ({ size, quantity: parseInt(newInventory[size]) || 0 }))
             .filter(item => item.quantity > 0);
+
+        // Calculate final inventory after adding new stock
+        const finalInventory = activeSizes.map(size => ({
+            size,
+            quantity: (parseInt(existingInventory[size]) || 0) + (parseInt(newInventory[size]) || 0)
+        })).filter(item => item.quantity > 0);
 
         const updatedProduct = {
             ...product,
@@ -140,12 +205,16 @@ const EditProductModal = ({ product, categories, onSave, onClose }) => {
             category: categoryKey,
             subcategory: subcategoryKey || '',
             color: color.toUpperCase(),
-            sizes: sizesToSave,
-            totalStock: totalStock,
+            sizes: finalInventory,
+            totalStock: totalStockAfterUpdate,
             isLive: isLive,
             imageUrl: imageUrl.trim(),
             description: description.trim(),
+            newInventoryToAdd: newInventoryToAdd, // This will be used by the backend
         };
+
+        console.log('Saving product with new inventory to add:', newInventoryToAdd);
+        console.log('Final inventory after update:', finalInventory);
 
         onSave(updatedProduct);
         onClose();
@@ -182,7 +251,7 @@ const EditProductModal = ({ product, categories, onSave, onClose }) => {
                         </div>
                         <div className='flex flex-col justify-end'>
                              <div className='text-base font-extrabold bg-black text-white px-4 py-3 rounded-lg shadow-md text-center'>
-                                TOTAL STOCK: {totalStock}
+                                TOTAL STOCK: {totalStockAfterUpdate}
                             </div>
                         </div>
 
@@ -233,25 +302,89 @@ const EditProductModal = ({ product, categories, onSave, onClose }) => {
                                 className="w-full p-3 border border-gray-300 rounded-md text-sm focus:ring-black focus:border-black" />
                         </div>
                         
-                        {/* Stock Management */}
+                        {/* Current Inventory Display (Read-Only) */}
                         <div className="md:col-span-4 border-t pt-4">
-                            <label className="block text-sm font-bold text-gray-800 mb-4">Update Stock by Size</label>
+                            <label className="block text-sm font-bold text-gray-800 mb-2">Current Inventory (Read-Only)</label>
+                            <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                                <div className="flex flex-wrap gap-2">
+                                    {activeSizes.map(size => {
+                                        const currentQty = existingInventory[size] || 0;
+                                        return (
+                                            <div key={size} className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                                currentQty > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'
+                                            }`}>
+                                                {size}: {currentQty}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-xs text-gray-600 mt-2">
+                                    Total Current Stock: <span className="font-bold">{totalExistingStock}</span> pieces
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Add New Inventory */}
+                        <div className="md:col-span-4 border-t pt-4">
+                            <label className="block text-sm font-bold text-gray-800 mb-4">Add New Inventory</label>
+                            <p className="text-sm text-gray-600 mb-4">Enter quantities to add to existing stock. Leave blank or 0 to not add inventory for that size.</p>
                             
                             <div className="flex flex-wrap gap-4 justify-start">
-                                {activeSizes.map(size => (
-                                    <div key={size} className='w-24 sm:w-28 flex flex-col items-center bg-gray-50 p-3 rounded-lg border border-gray-200'>
-                                        <label className="text-sm font-extrabold uppercase mb-2 text-black">{size}</label>
-                                        <input
-                                            type="number" min="0"
-                                            value={sizeQuantities[size] || ''}
-                                            onChange={(e) => handleQuantityChange(size, e.target.value)}
-                                            placeholder="0"
-                                            className="w-full text-xl text-center font-mono py-1 border-b-2 border-gray-400 focus:border-black focus:outline-none transition-colors"
-                                        />
-                                    </div>
-                                ))}
+                                {activeSizes.map(size => {
+                                    const newQty = newInventory[size] || 0;
+                                    const existingQty = existingInventory[size] || 0;
+                                    const finalQty = existingQty + newQty;
+                                    
+                                    return (
+                                        <div key={size} className={`w-24 sm:w-28 flex flex-col items-center p-3 rounded-lg border-2 transition-colors ${
+                                            newQty > 0 ? 'bg-blue-50 border-blue-300' : 'bg-gray-50 border-gray-200'
+                                        }`}>
+                                            <label className="text-sm font-extrabold uppercase mb-2 text-black">{size}</label>
+                                            <div className="text-xs text-gray-500 mb-1">Current: {existingQty}</div>
+                                            <input
+                                                type="number" min="0"
+                                                value={newInventory[size] || ''}
+                                                onChange={(e) => handleNewInventoryChange(size, e.target.value)}
+                                                placeholder="0"
+                                                className={`w-full text-xl text-center font-mono py-1 border-b-2 focus:outline-none transition-colors ${
+                                                    newQty > 0 ? 'border-blue-500 focus:border-blue-600' : 'border-gray-400 focus:border-black'
+                                                }`}
+                                            />
+                                            <div className="text-xs text-green-600 font-medium mt-1">
+                                                Final: {finalQty}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                            {totalStock === 0 && <p className='text-xs text-red-500 mt-2'>Enter stock quantity for at least one size.</p>}
+                            {totalNewInventory === 0 && <p className='text-xs text-gray-500 mt-2'>No new inventory to add. Enter quantities above to add stock.</p>}
+                            
+                            {/* Inventory Addition Summary */}
+                            {totalNewInventory > 0 && (
+                                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                    <p className="text-sm font-medium text-green-800 mb-2">Inventory to be added:</p>
+                                    <div className="space-y-1">
+                                        {activeSizes.filter(size => (newInventory[size] || 0) > 0).map(size => {
+                                            const newQty = newInventory[size] || 0;
+                                            const existingQty = existingInventory[size] || 0;
+                                            const finalQty = existingQty + newQty;
+                                            return (
+                                                <div key={size} className="text-xs text-green-700">
+                                                    <span className="font-medium">{size}:</span> {existingQty} + {newQty} = {finalQty}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="mt-2 pt-2 border-t border-green-200">
+                                        <p className="text-xs text-green-800">
+                                            <span className="font-medium">Total new inventory:</span> {totalNewInventory} pieces
+                                        </p>
+                                        <p className="text-xs text-green-800">
+                                            <span className="font-medium">Final total stock:</span> {totalStockAfterUpdate} pieces
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Live Status and Save */}
@@ -271,9 +404,10 @@ const EditProductModal = ({ product, categories, onSave, onClose }) => {
                             <button 
                                 type="submit" 
                                 className="bg-black text-white px-8 py-3 rounded-md flex items-center justify-center hover:bg-gray-800 transition tracking-wider uppercase shadow-md disabled:opacity-50"
-                                disabled={!categoryKey || totalStock === 0 || !name.trim() || !price || !color.trim()}
+                                disabled={!categoryKey || !name.trim() || !price || !color.trim()}
                             >
-                                <Pencil size={18} className='mr-2' /> Update Product
+                                <Pencil size={18} className='mr-2' /> 
+                                {totalNewInventory > 0 ? 'Add Inventory & Update' : 'Update Product'}
                             </button>
                         </div>
                     </div>
@@ -626,8 +760,8 @@ const ProductManager = ({ categories, setProducts, products }) => {
       const productData = {
         name: updatedProduct.name,
         price: updatedProduct.price,
-        category_id: selectedCategory.id,
-        subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
+        category: selectedCategory.id, // API expects category ID, not category_id
+        subcategory: selectedSubcategory ? selectedSubcategory.id : null, // API expects subcategory ID, not subcategory_id
         gender: updatedProduct.gender,
         color: updatedProduct.color,
         sizes: updatedProduct.sizes,
@@ -635,9 +769,15 @@ const ProductManager = ({ categories, setProducts, products }) => {
         is_live: updatedProduct.isLive,
         image_url: updatedProduct.imageUrl || null,
         description: updatedProduct.description || null,
+        new_inventory_to_add: updatedProduct.newInventoryToAdd || [], // Send new inventory to add
       };
 
+      console.log('Updating product with data:', productData);
+      console.log('Sizes data being sent:', updatedProduct.sizes);
+
       const response = await updateProduct(updatedProduct.id, productData);
+      
+      console.log('Update response:', response.data);
       
       // Update the product in local state with proper data mapping
       const updatedProductFromAPI = {
@@ -647,10 +787,17 @@ const ProductManager = ({ categories, setProducts, products }) => {
         gender: response.data.gender,
         color: response.data.color,
         sizes: response.data.total_stock_by_sizes,
+        total_stock_by_sizes: response.data.total_stock_by_sizes, // API format
         totalStock: response.data.total_stock_by_sizes.reduce((sum, s) => sum + s.quantity, 0),
         isLive: response.data.is_live,
+        is_live: response.data.is_live, // API format
         imageUrl: response.data.image_url || '',
+        image_url: response.data.image_url || '', // API format
         description: response.data.description || '',
+        category_name: response.data.category_name,
+        subcategory_name: response.data.subcategory_name,
+        category: response.data.category,
+        subcategory: response.data.subcategory,
       };
       
       setProducts(prevProducts => prevProducts.map(p => 
@@ -912,15 +1059,15 @@ const ProductManager = ({ categories, setProducts, products }) => {
                             <div className="flex flex-col">
                                 <span className="font-medium block">{p.name} - <span className='text-gray-700'>{p.color}</span></span>
                                 <span className="text-xs text-gray-500 block mt-1">
-                                    Dept: <span className='font-bold uppercase'>{p.gender}</span> | Cat: {p.category}{p.subcategory ? ` / ${p.subcategory}` : ''}
+                                    Dept: <span className='font-bold uppercase'>{p.gender}</span> | Cat: {p.category_name || p.category}{p.subcategory_name || p.subcategory ? ` / ${p.subcategory_name || p.subcategory}` : ''}
                                 </span>
                                 <span className="text-xs text-gray-400 block mt-1">
-                                    **STOCK**: {p.totalStock} pieces
+                                    **STOCK**: {p.totalStock || (p.total_stock_by_sizes ? p.total_stock_by_sizes.reduce((sum, s) => sum + s.quantity, 0) : 0)} pieces
                                 </span>
                             </div>
                             <div className="text-right flex items-center space-x-3">
                                 {/* Live Status Icon */}
-                                {p.isLive ? (
+                                {(p.isLive || p.is_live) ? (
                                     <Zap size={18} className='text-green-600' title="Live on Website" />
                                 ) : (
                                     <span className="text-xs text-red-500 font-semibold italic">Draft</span>
