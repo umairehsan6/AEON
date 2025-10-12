@@ -12,9 +12,9 @@ class Command(BaseCommand):
         pass  # No arguments needed - everything is hardcoded
 
     def handle(self, *args, **options):
-        username = 'root'  # Hardcoded username
-        email = 'root'  # Hardcoded email
-        password = 'root'  # Hardcoded password
+        username = 'admin'  # Hardcoded username
+        email = 'admin@example.com'  # Hardcoded email
+        password = 'admin'  # Hardcoded password
         
         first_name = 'Admin'
         last_name = 'User'
