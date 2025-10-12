@@ -31,6 +31,8 @@ class SubCategorySerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     subcategory_name = serializers.CharField(source='subcategory.name', read_only=True)
+    primary_image = serializers.SerializerMethodField()
+    images = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
@@ -38,9 +40,64 @@ class ProductSerializer(serializers.ModelSerializer):
             'id', 'name', 'gender', 'color', 'price', 'image_url', 
             'total_stock_by_sizes', 'description', 'is_live', 'sizes',
             'category', 'subcategory', 'category_name', 'subcategory_name',
-            'created_at'
+            'created_at', 'primary_image', 'images'
         ]
         read_only_fields = ['id', 'created_at']
+    
+    def get_primary_image(self, obj):
+        """Get the primary image URL for backward compatibility"""
+        if obj.image_url and isinstance(obj.image_url, list) and len(obj.image_url) > 0:
+            # Find primary image or return first image
+            primary_img = next((img for img in obj.image_url if img.get('is_primary', False)), None)
+            if primary_img:
+                return primary_img.get('url')
+            return obj.image_url[0].get('url') if obj.image_url[0] else None
+        return None
+    
+    def get_images(self, obj):
+        """Get all images with proper structure"""
+        if obj.image_url and isinstance(obj.image_url, list):
+            # Sort by order field, then by array index
+            sorted_images = sorted(obj.image_url, key=lambda x: (x.get('order', 999), obj.image_url.index(x)))
+            return sorted_images
+        return []
+    
+    def validate_image_url(self, value):
+        """Validate image_url structure"""
+        if value is None:
+            return []
+        
+        if not isinstance(value, list):
+            raise serializers.ValidationError("image_url must be a list of image objects")
+        
+        for i, img in enumerate(value):
+            if not isinstance(img, dict):
+                raise serializers.ValidationError(f"Image at index {i} must be an object")
+            
+            required_fields = ['url']
+            for field in required_fields:
+                if field not in img:
+                    raise serializers.ValidationError(f"Image at index {i} must have '{field}' field")
+            
+            # Set default values
+            if 'id' not in img:
+                img['id'] = f"img_{i+1}"
+            if 'alt' not in img:
+                img['alt'] = f"Product image {i+1}"
+            if 'is_primary' not in img:
+                img['is_primary'] = i == 0  # First image is primary by default
+            if 'order' not in img:
+                img['order'] = i + 1
+        
+        # Ensure only one primary image
+        primary_count = sum(1 for img in value if img.get('is_primary', False))
+        if primary_count > 1:
+            raise serializers.ValidationError("Only one image can be marked as primary")
+        elif primary_count == 0 and len(value) > 0:
+            # If no primary image is set, make the first one primary
+            value[0]['is_primary'] = True
+        
+        return value
     
     def validate(self, attrs):
         # Validate that subcategory belongs to the selected category

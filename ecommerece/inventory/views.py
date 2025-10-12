@@ -7,6 +7,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAdminUser, AllowAny
 from rest_framework.permissions import BasePermission
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from django.conf import settings
+import os
+import uuid
+from PIL import Image
+import io
 
 
 # Custom permission class for admin-only write operations
@@ -316,3 +323,326 @@ class CollectionProductsDeleteAPIView(APIView):
         link = get_object_or_404(CollectionProducts, collection_id=collection_id, product_id=product_id)
         link.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# Image Management Views
+class ProductImageUploadAPIView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+    
+    def post(self, request, product_id, *args, **kwargs):
+        """Add new images to a product"""
+        product = get_object_or_404(Product, pk=product_id)
+        
+        # Get images from request
+        images_data = request.data.get('images', [])
+        if not images_data:
+            return Response({'error': 'No images provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Initialize image_url if it doesn't exist
+        if not product.image_url:
+            product.image_url = []
+        
+        # Add new images
+        for img_data in images_data:
+            if not isinstance(img_data, dict) or 'url' not in img_data:
+                continue
+                
+            # Generate unique ID for the image
+            img_id = img_data.get('id', f"img_{len(product.image_url) + 1}")
+            
+            # Check if ID already exists
+            existing_ids = [img.get('id') for img in product.image_url if img.get('id')]
+            counter = 1
+            while img_id in existing_ids:
+                img_id = f"img_{len(product.image_url) + counter}"
+                counter += 1
+            
+            new_image = {
+                'id': img_id,
+                'url': img_data['url'],
+                'alt': img_data.get('alt', f'Product image {len(product.image_url) + 1}'),
+                'is_primary': img_data.get('is_primary', False),
+                'order': img_data.get('order', len(product.image_url) + 1)
+            }
+            
+            product.image_url.append(new_image)
+        
+        # Ensure only one primary image
+        primary_count = sum(1 for img in product.image_url if img.get('is_primary', False))
+        if primary_count > 1:
+            # Keep only the first primary image, remove primary flag from others
+            found_primary = False
+            for img in product.image_url:
+                if img.get('is_primary', False):
+                    if found_primary:
+                        img['is_primary'] = False
+                    else:
+                        found_primary = True
+        elif primary_count == 0 and len(product.image_url) > 0:
+            # Make the first image primary
+            product.image_url[0]['is_primary'] = True
+        
+        product.save()
+        
+        serializer = ProductSerializer(product)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ProductImageDeleteAPIView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+    
+    def delete(self, request, product_id, image_id, *args, **kwargs):
+        """Delete a specific image from a product"""
+        product = get_object_or_404(Product, pk=product_id)
+        
+        if not product.image_url or not isinstance(product.image_url, list):
+            return Response({'error': 'No images found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Find and remove the image
+        original_length = len(product.image_url)
+        product.image_url = [img for img in product.image_url if img.get('id') != image_id]
+        
+        if len(product.image_url) == original_length:
+            return Response({'error': 'Image not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # If we deleted the primary image, make the first remaining image primary
+        primary_count = sum(1 for img in product.image_url if img.get('is_primary', False))
+        if primary_count == 0 and len(product.image_url) > 0:
+            product.image_url[0]['is_primary'] = True
+        
+        product.save()
+        
+        serializer = ProductSerializer(product)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ProductImageReorderAPIView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+    
+    def put(self, request, product_id, *args, **kwargs):
+        """Reorder images for a product"""
+        product = get_object_or_404(Product, pk=product_id)
+        
+        if not product.image_url or not isinstance(product.image_url, list):
+            return Response({'error': 'No images found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get new order from request
+        new_order = request.data.get('image_order', [])
+        if not isinstance(new_order, list):
+            return Response({'error': 'image_order must be a list'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create a mapping of image_id to new order
+        order_mapping = {img_id: i + 1 for i, img_id in enumerate(new_order)}
+        
+        # Update the order of images
+        for img in product.image_url:
+            img_id = img.get('id')
+            if img_id in order_mapping:
+                img['order'] = order_mapping[img_id]
+        
+        # Sort images by new order
+        product.image_url.sort(key=lambda x: x.get('order', 999))
+        
+        product.save()
+        
+        serializer = ProductSerializer(product)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ProductSetPrimaryImageAPIView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+    
+    def put(self, request, product_id, image_id, *args, **kwargs):
+        """Set a specific image as primary"""
+        product = get_object_or_404(Product, pk=product_id)
+        
+        if not product.image_url or not isinstance(product.image_url, list):
+            return Response({'error': 'No images found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Find the target image
+        target_image = None
+        for img in product.image_url:
+            if img.get('id') == image_id:
+                target_image = img
+                break
+        
+        if not target_image:
+            return Response({'error': 'Image not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Remove primary flag from all images
+        for img in product.image_url:
+            img['is_primary'] = False
+        
+        # Set the target image as primary
+        target_image['is_primary'] = True
+        
+        product.save()
+        
+        serializer = ProductSerializer(product)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# File Upload Views for Render
+class ProductImageFileUploadAPIView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+    
+    def post(self, request, product_id, *args, **kwargs):
+        """Upload image files directly to the server"""
+        product = get_object_or_404(Product, pk=product_id)
+        
+        # Check if files are provided
+        if 'images' not in request.FILES:
+            return Response({'error': 'No images provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        uploaded_files = request.FILES.getlist('images')
+        if not uploaded_files:
+            return Response({'error': 'No images provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Initialize image_url if it doesn't exist
+        if not product.image_url:
+            product.image_url = []
+        
+        uploaded_images = []
+        
+        for file in uploaded_files:
+            # Validate file type
+            if not file.content_type.startswith('image/'):
+                continue
+            
+            # Generate unique filename
+            file_extension = os.path.splitext(file.name)[1]
+            unique_filename = f"product_{product_id}_{uuid.uuid4().hex}{file_extension}"
+            
+            # Create directory structure
+            upload_path = f"products/{product_id}/{unique_filename}"
+            
+            try:
+                # Process and save the image
+                processed_file = self.process_image(file)
+                
+                # Save to media storage
+                saved_path = default_storage.save(upload_path, processed_file)
+                
+                # Generate URL for the saved file
+                if settings.DEBUG:
+                    # Development: use local media URL
+                    image_url = f"{settings.MEDIA_URL}{saved_path}"
+                else:
+                    # Production: use full domain URL
+                    image_url = f"{request.build_absolute_uri('/')[:-1]}{settings.MEDIA_URL}{saved_path}"
+                
+                # Create image object
+                img_id = f"img_{len(product.image_url) + 1}"
+                new_image = {
+                    'id': img_id,
+                    'url': image_url,
+                    'alt': f"{product.name} image {len(product.image_url) + 1}",
+                    'is_primary': len(product.image_url) == 0,  # First image is primary
+                    'order': len(product.image_url) + 1,
+                    'filename': unique_filename,
+                    'original_name': file.name
+                }
+                
+                product.image_url.append(new_image)
+                uploaded_images.append(new_image)
+                
+            except Exception as e:
+                print(f"Error processing image {file.name}: {str(e)}")
+                continue
+        
+        if not uploaded_images:
+            return Response({'error': 'No valid images were uploaded'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Ensure only one primary image
+        primary_count = sum(1 for img in product.image_url if img.get('is_primary', False))
+        if primary_count > 1:
+            # Keep only the first primary image
+            found_primary = False
+            for img in product.image_url:
+                if img.get('is_primary', False):
+                    if found_primary:
+                        img['is_primary'] = False
+                    else:
+                        found_primary = True
+        
+        product.save()
+        
+        serializer = ProductSerializer(product)
+        return Response({
+            'message': f'Successfully uploaded {len(uploaded_images)} images',
+            'uploaded_images': uploaded_images,
+            'product': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    def process_image(self, file):
+        """Process and optimize the uploaded image"""
+        try:
+            # Open image with PIL
+            image = Image.open(file)
+            
+            # Convert to RGB if necessary (for JPEG)
+            if image.mode in ('RGBA', 'LA', 'P'):
+                image = image.convert('RGB')
+            
+            # Resize if too large (max 2048px on longest side)
+            max_size = 2048
+            if max(image.size) > max_size:
+                image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+            
+            # Save to BytesIO
+            output = io.BytesIO()
+            image.save(output, format='JPEG', quality=85, optimize=True)
+            output.seek(0)
+            
+            return ContentFile(output.getvalue(), name=file.name)
+            
+        except Exception as e:
+            print(f"Error processing image: {str(e)}")
+            # Return original file if processing fails
+            return file
+
+
+class ProductImageFileDeleteAPIView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+    
+    def delete(self, request, product_id, image_id, *args, **kwargs):
+        """Delete a specific image file from the server"""
+        product = get_object_or_404(Product, pk=product_id)
+        
+        if not product.image_url or not isinstance(product.image_url, list):
+            return Response({'error': 'No images found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Find the image to delete
+        image_to_delete = None
+        for img in product.image_url:
+            if img.get('id') == image_id:
+                image_to_delete = img
+                break
+        
+        if not image_to_delete:
+            return Response({'error': 'Image not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Delete the file from storage
+        try:
+            if 'filename' in image_to_delete:
+                file_path = f"products/{product_id}/{image_to_delete['filename']}"
+                if default_storage.exists(file_path):
+                    default_storage.delete(file_path)
+        except Exception as e:
+            print(f"Error deleting file: {str(e)}")
+        
+        # Remove from product's image_url
+        product.image_url = [img for img in product.image_url if img.get('id') != image_id]
+        
+        # If we deleted the primary image, make the first remaining image primary
+        primary_count = sum(1 for img in product.image_url if img.get('is_primary', False))
+        if primary_count == 0 and len(product.image_url) > 0:
+            product.image_url[0]['is_primary'] = True
+        
+        product.save()
+        
+        serializer = ProductSerializer(product)
+        return Response({
+            'message': 'Image deleted successfully',
+            'product': serializer.data
+        }, status=status.HTTP_200_OK)

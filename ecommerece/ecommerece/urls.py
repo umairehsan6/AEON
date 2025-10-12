@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from user import views
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -13,3 +15,7 @@ urlpatterns = [
     path('api/cart/', include('cart.urls')),
     path('api/orders/', include('orders.urls')),
 ]
+
+# Serve media files during development and on Render
+if settings.DEBUG or settings.MEDIA_URL:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -11,7 +11,24 @@ const ProductUserCard = ({ product }) => {
     const bgColor = (product.color || '').toUpperCase().includes('BLACK') ? '000' : 'EBEBEB';
     const textColor = (product.color || '').toUpperCase().includes('BLACK') ? 'FFF' : '000';
     const placeholderText = (product.name || 'PRODUCT').split(' ').slice(0, 2).join(' ');
-    const imageUrl = `https://placehold.co/${imageSize}x${imageSize}/${bgColor}/${textColor}?text=${placeholderText}`;
+    const placeholderImageUrl = `https://placehold.co/${imageSize}x${imageSize}/${bgColor}/${textColor}?text=${placeholderText}`;
+    
+    // Get primary image or first image from the images array
+    const getDisplayImage = () => {
+        if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+            // Find primary image or return first image
+            const primaryImg = product.images.find(img => img.is_primary);
+            return primaryImg ? primaryImg.url : product.images[0].url;
+        }
+        // Fallback to primary_image field for backward compatibility
+        if (product.primary_image) {
+            return product.primary_image;
+        }
+        // Fallback to placeholder
+        return placeholderImageUrl;
+    };
+    
+    const displayImageUrl = getDisplayImage();
 
     const { refreshCount, addCount } = useCart();
     const [added, setAdded] = useState(false);
@@ -102,10 +119,10 @@ const ProductUserCard = ({ product }) => {
         <div className="product-card group cursor-pointer">
             <div className="relative w-full aspect-square bg-gray-50 mb-3 overflow-hidden shadow-sm cursor-pointer" onClick={handleImageClick}>
                 <img 
-                    src={imageUrl} 
+                    src={displayImageUrl} 
                     alt={product.name} 
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                    onError={(e) => e.target.src = `https://placehold.co/${imageSize}x${imageSize}/FFF/000?text=NO+IMAGE`}
+                    onError={(e) => e.target.src = placeholderImageUrl}
                 />
                 <div className="absolute inset-x-0 bottom-0 py-1.5 text-center bg-white/80 backdrop-blur-sm text-xs font-medium tracking-wider uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     View Details

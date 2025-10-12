@@ -19,6 +19,7 @@ const App = () => {
   const [addedToCart, setAddedToCart] = useState(false);
   const [sizeInventory, setSizeInventory] = useState({});
   const [isAdmin, setIsAdmin] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   // Check if user is admin
   useEffect(() => {
@@ -72,6 +73,9 @@ const App = () => {
         
         setSizeInventory(inventoryMap);
         
+        // Reset selected image index when product changes
+        setSelectedImageIndex(0);
+        
         
         // Set default size (prefer in-stock sizes for all users)
         if (sizesArray.length > 0) {
@@ -107,6 +111,35 @@ const App = () => {
     if (quantity === 0) return 'Out of stock';
     if (quantity <= 5) return `Only ${quantity} left`;
     return 'In stock';
+  };
+
+  // Helper functions for image handling
+  const getProductImages = () => {
+    if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+      return product.images;
+    }
+    // Fallback to primary_image or image_url for backward compatibility
+    if (product.primary_image) {
+      return [{ id: 'img_1', url: product.primary_image, alt: product.name, is_primary: true, order: 1 }];
+    }
+    if (product.image_url && typeof product.image_url === 'string') {
+      return [{ id: 'img_1', url: product.image_url, alt: product.name, is_primary: true, order: 1 }];
+    }
+    return [];
+  };
+
+  const getCurrentImage = () => {
+    const images = getProductImages();
+    if (images.length === 0) return null;
+    return images[selectedImageIndex] || images[0];
+  };
+
+  const getPlaceholderImage = () => {
+    const imageSize = 600;
+    const bgColor = (product.color || '').toUpperCase().includes('BLACK') ? '000' : 'EBEBEB';
+    const textColor = (product.color || '').toUpperCase().includes('BLACK') ? 'FFF' : '000';
+    const placeholderText = (product.name || 'PRODUCT').split(' ').slice(0, 2).join(' ');
+    return `https://placehold.co/${imageSize}x${imageSize}/${bgColor}/${textColor}?text=${placeholderText}`;
   };
 
   const handleAddToCart = async () => {
@@ -176,32 +209,101 @@ const App = () => {
         {/* === LEFT SIDE: IMAGE/CANVAS CONTAINER (Dominates on desktop) === */}
         <div className="lg:w-3/5 xl:w-2/3 h-auto lg:pr-12">
           {/* Main Product Image/Canvas Area - Styled for high contrast and large scale */}
-          <div className="w-full aspect-[2/3] bg-gray-100 mb-6 flex items-center justify-center border border-gray-200 shadow-sm rounded-lg overflow-hidden">
-            {product.image_url ? (
-              <img 
-                src={product.image_url} 
-                alt={product.name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
-                }}
-              />
-            ) : null}
-            <div className="text-xl font-medium text-gray-500 p-10 text-center" style={{ display: product.image_url ? 'none' : 'block' }}>
-              {product.name}<br />
-              <span className="text-sm">(No image available)</span>
-            </div>
+          <div className="w-full aspect-[2/3] bg-gray-100 mb-6 flex items-center justify-center border border-gray-200 shadow-sm rounded-lg overflow-hidden relative">
+            {(() => {
+              const currentImage = getCurrentImage();
+              const images = getProductImages();
+              
+              if (currentImage) {
+                return (
+                  <img 
+                    src={currentImage.url} 
+                    alt={currentImage.alt || product.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = getPlaceholderImage();
+                    }}
+                  />
+                );
+              }
+              
+              return (
+                <div className="text-xl font-medium text-gray-500 p-10 text-center">
+                  {product.name}<br />
+                  <span className="text-sm">(No image available)</span>
+                </div>
+              );
+            })()}
+            
+            {/* Image Navigation Arrows (only show if multiple images) */}
+            {(() => {
+              const images = getProductImages();
+              if (images.length > 1) {
+                return (
+                  <>
+                    {/* Previous Image Button */}
+                    {selectedImageIndex > 0 && (
+                      <button
+                        onClick={() => setSelectedImageIndex(selectedImageIndex - 1)}
+                        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-black p-2 rounded-full shadow-lg transition-all duration-200"
+                        aria-label="Previous image"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+                    )}
+                    
+                    {/* Next Image Button */}
+                    {selectedImageIndex < images.length - 1 && (
+                      <button
+                        onClick={() => setSelectedImageIndex(selectedImageIndex + 1)}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-black p-2 rounded-full shadow-lg transition-all duration-200"
+                        aria-label="Next image"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    )}
+                  </>
+                );
+              }
+              return null;
+            })()}
           </div>
 
-          {/* Optional: Secondary Images Grid (Hidden on mobile for cleaner look) */}
-          <div className="hidden md:grid grid-cols-3 gap-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="aspect-square bg-gray-50 border border-gray-200 rounded-md flex items-center justify-center">
-                <div className="text-xs text-gray-400">Detail View {i}</div>
-              </div>
-            ))}
-          </div>
+          {/* Image Thumbnail Grid */}
+          {(() => {
+            const images = getProductImages();
+            if (images.length > 1) {
+              return (
+                <div className="grid grid-cols-3 gap-3">
+                  {images.map((image, index) => (
+                    <button
+                      key={image.id}
+                      onClick={() => setSelectedImageIndex(index)}
+                      className={`aspect-square bg-gray-50 border-2 rounded-md overflow-hidden transition-all duration-200 ${
+                        selectedImageIndex === index 
+                          ? 'border-black shadow-md' 
+                          : 'border-gray-200 hover:border-gray-400'
+                      }`}
+                    >
+                      <img 
+                        src={image.url} 
+                        alt={image.alt || `${product.name} view ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = getPlaceholderImage();
+                        }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              );
+            }
+            return null;
+          })()}
         </div>
         
         {/* === RIGHT SIDE: PRODUCT INFO & CTA (Sticky on desktop) === */}
