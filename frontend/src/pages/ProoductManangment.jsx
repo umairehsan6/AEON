@@ -697,8 +697,7 @@ const ProductManager = ({ categories, setProducts, products }) => {
           total_stock_by_sizes: sizesToSave,
           is_live: isLive,
           image_url: imageUrl.trim() || null,
-          description: description.trim() || null,
-          price: parseFloat(price)
+          description: description.trim() || null
         };
 
       const response = await postProducts(productData);
