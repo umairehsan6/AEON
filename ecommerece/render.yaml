@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: ecommerce-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
+    startCommand: gunicorn ecommerece.wsgi:application
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: ecommerece.settings
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        value: ecommerce-backend.onrender.com
+      - key: RENDER
+        value: True
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ecommerce-db
+          property: connectionString
+    disk:
+      name: media-storage
+      mountPath: /opt/render/project/src/media
+      sizeGB: 1
