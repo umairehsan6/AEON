@@ -19,17 +19,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 import os
-SECRET_KEY = os.environ.get('SECRET_KEY')
 # SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-_ts0ztv!x^@=h&4g$hle(1*gukaeme6@wmo+tk_@7i)90u0)0*')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG')
-# Parse ALLOWED_HOSTS from environment variable
+DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
+# ALLOWED_HOSTS - hardcoded for Render deployment with environment variable support
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'aeon-c8zq.onrender.com',
+    '.onrender.com'  # Allow all Render subdomains
+]
+
+# Add any additional hosts from environment variable
 allowed_hosts_env = os.environ.get('ALLOWED_HOSTS', '')
 if allowed_hosts_env:
-    ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(',') if host.strip()]
-else:
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+    additional_hosts = [host.strip() for host in allowed_hosts_env.split(',') if host.strip()]
+    ALLOWED_HOSTS.extend(additional_hosts)
 
 
 # Application definition
@@ -176,7 +183,14 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
+# CORS configuration with environment variable support
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:5174",
 ]
+
+# Add CORS origins from environment variable
+cors_origins_env = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+if cors_origins_env:
+    additional_origins = [origin.strip() for origin in cors_origins_env.split(',') if origin.strip()]
+    CORS_ALLOWED_ORIGINS.extend(additional_origins)
