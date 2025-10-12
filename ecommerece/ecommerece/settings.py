@@ -194,3 +194,30 @@ cors_origins_env = os.environ.get('CORS_ALLOWED_ORIGINS', '')
 if cors_origins_env:
     additional_origins = [origin.strip() for origin in cors_origins_env.split(',') if origin.strip()]
     CORS_ALLOWED_ORIGINS.extend(additional_origins)
+
+# Logging configuration for better error tracking
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'user': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}

@@ -17,7 +17,6 @@ class Users(AbstractUser):
     ]
     name = models.CharField(max_length=100 , blank=True , null=True)
     email = models.EmailField(unique=True)
-    password = models.CharField(max_length=128)
     phone = models.CharField(max_length=15 , blank=True , null=True)
     country = models.CharField(max_length=50 , blank=True , null=True)
     profile_image = models.JSONField(blank=True , null=True)
@@ -26,7 +25,6 @@ class Users(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     role = models.CharField(max_length=50 , default='user', choices = [('user', 'User'), ('admin', 'Admin'), ('manager', 'Manager') , ('staff', 'Staff')])
-    username = models.CharField(max_length=150, unique=True)
     date_of_birth = models.DateField(blank=True , null=True)
     last_login = models.DateTimeField(blank=True , null=True)
     last_device = models.CharField(max_length=200 , blank=True , null=True)
