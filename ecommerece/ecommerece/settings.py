@@ -187,6 +187,7 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:5174",
+    "https://aeon-ecom1.vercel.app",  # Add your Vercel domain here
 ]
 
 # Add CORS origins from environment variable
