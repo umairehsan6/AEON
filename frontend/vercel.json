@@ -1,8 +1,4 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm ci --prefer-offline --no-audit",
-  "framework": null,
   "rewrites": [
     {
       "source": "/api/:path*",
