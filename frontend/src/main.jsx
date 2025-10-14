@@ -20,7 +20,6 @@ import Collection from './pages/Collection.jsx'
 import CheckoutPage from './pages/Checkout.jsx'
 import OrdersPage from './pages/Orders.jsx'
 import DashboardPage from './pages/Dashboard.jsx'
-import ProductsFiltered from './pages/ProductsFiltered.jsx'
 import { CartProvider } from './context/CartContext.jsx'
 const router = createBrowserRouter(createRoutesFromElements(
   <>
@@ -40,11 +39,14 @@ const router = createBrowserRouter(createRoutesFromElements(
       } />
       <Route path='products' element={<ProductListPage />} />
       <Route path='product/:id' element={<ProductPage />} />
-      <Route path='products/filter' element={<ProductsFiltered />} />
-      <Route path='women/:category?' element={<ProductsFiltered />} />
-      <Route path='men/:category?' element={<ProductsFiltered />} />
-      <Route path='kids/:category?' element={<ProductsFiltered />} />
-      <Route path='collection/:collectionName' element={<ProductsFiltered />} />
+      <Route path='products/filter' element={<ProductListPage />} />
+      <Route path='women/:category?' element={<ProductListPage />} />
+      <Route path='women/:category/:subcategory' element={<ProductListPage />} />
+      <Route path='men/:category?' element={<ProductListPage />} />
+      <Route path='men/:category/:subcategory' element={<ProductListPage />} />
+      <Route path='kids/:category?' element={<ProductListPage />} />
+      <Route path='kids/:category/:subcategory' element={<ProductListPage />} />
+      <Route path='collection/:collectionName' element={<ProductListPage />} />
       <Route path='cart' element={
         <ProtectedRoute>
           <Cart />

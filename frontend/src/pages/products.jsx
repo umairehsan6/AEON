@@ -1,183 +1,226 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useParams } from 'react-router-dom';
 import ProductUserCard from '../components/ProductUserCard';
-import { getProducts } from '../services/inventory';
+import { getFilteredProducts } from '../services/inventory';
 
-// Products are fetched from backend
+const Products = () => {
+  const [searchParams] = useSearchParams();
+  const params = useParams();
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filters, setFilters] = useState({});
 
-/**
- * Custom hook to manage the state and logic for the Add to Cart button feedback.
- */
-const useCartFeedback = (productId) => {
-    const [feedback, setFeedback] = useState('QUICK ADD');
-    const [isAdding, setIsAdding] = useState(false);
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-    const handleAction = (size) => {
-        if (isAdding) return;
+        // Extract filters from URL parameters and route params
+        const currentFilters = {
+          gender: searchParams.get('gender') || '',
+          category: searchParams.get('category') || '',
+          subcategory: searchParams.get('subcategory') || '',
+          collection: searchParams.get('collection') || '',
+          search: searchParams.get('search') || '',
+          is_live: true
+        };
 
-        setIsAdding(true);
-        setFeedback('ADDED!');
+        // Determine gender and category from URL path
+        const pathname = window.location.pathname;
+        if (pathname.startsWith('/women')) {
+          currentFilters.gender = 'women';
+          if (params.category) {
+            currentFilters.category = params.category;
+          }
+          if (params.subcategory) {
+            currentFilters.subcategory = params.subcategory;
+          }
+        } else if (pathname.startsWith('/men')) {
+          currentFilters.gender = 'men';
+          if (params.category) {
+            currentFilters.category = params.category;
+          }
+          if (params.subcategory) {
+            currentFilters.subcategory = params.subcategory;
+          }
+        } else if (pathname.startsWith('/kids')) {
+          currentFilters.gender = 'kids';
+          if (params.category) {
+            currentFilters.category = params.category;
+          }
+          if (params.subcategory) {
+            currentFilters.subcategory = params.subcategory;
+          }
+        } else if (pathname.startsWith('/collection/')) {
+          currentFilters.collection = params.collectionName;
+        }
+
+        setFilters(currentFilters);
+
+        console.log('Fetching products with filters:', currentFilters);
+        const response = await getFilteredProducts(currentFilters);
         
-        console.log(`Product added to cart: ID ${productId}, Size: ${size}`);
-
-        // Revert button text and style after a short delay
-        setTimeout(() => {
-            setFeedback('QUICK ADD');
-            setIsAdding(false);
-        }, 800);
+        setProducts(response.data.products || []);
+        console.log('Products loaded:', response.data.products?.length || 0);
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        setError('Failed to load products. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    return { feedback, isAdding, handleAction };
-};
+    fetchProducts();
+  }, [searchParams, params]);
 
+  const getPageTitle = () => {
+    if (filters.collection) {
+      return `${filters.collection.toUpperCase()} COLLECTION`;
+    }
+    if (filters.subcategory) {
+      return `${filters.gender.toUpperCase()} ${filters.subcategory.toUpperCase()}`;
+    }
+    if (filters.category) {
+      return `${filters.gender.toUpperCase()} ${filters.category.toUpperCase()}`;
+    }
+    if (filters.gender) {
+      return `${filters.gender.toUpperCase()}`;
+    }
+    if (filters.search) {
+      return `SEARCH RESULTS FOR "${filters.search.toUpperCase()}"`;
+    }
+    return 'ALL PRODUCTS';
+  };
 
-
-
-/**
- * Main component for the product list page.
- */
-const ProductListPage = () => {
-    // State for the currently selected sort option
-    const [sortOption, setSortOption] = useState('recent');
-    // Source products (from API) and displayed products (after sort)
-    const [allProducts, setAllProducts] = useState([]);
-    const [displayedProducts, setDisplayedProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
+  const getBreadcrumb = () => {
+    const breadcrumbs = [];
     
-    // Memoized sorting function to optimize performance
-    const handleSort = useMemo(() => {
-        return (products) => {
-            const sortedProducts = [...products];
-            sortedProducts.sort((a, b) => {
-                switch (sortOption) {
-                    case 'low-high':
-                        return a.price - b.price;
-                    case 'high-low':
-                        return b.price - a.price;
-                    case 'recent':
-                    default:
-                        // Sort by date (newest first)
-                        return new Date(b.date) - new Date(a.date);
-                }
-            });
-            return sortedProducts;
-        };
-    }, [sortOption]);
+    if (filters.gender) {
+      breadcrumbs.push({
+        label: filters.gender.toUpperCase(),
+        href: `/${filters.gender}`
+      });
+    }
+    
+    if (filters.category) {
+      breadcrumbs.push({
+        label: filters.category.toUpperCase(),
+        href: `/${filters.gender}/${filters.category}`
+      });
+    }
+    
+    if (filters.subcategory) {
+      breadcrumbs.push({
+        label: filters.subcategory.toUpperCase(),
+        href: `/${filters.gender}/${filters.category}/${filters.subcategory}`
+      });
+    }
+    
+    return breadcrumbs;
+  };
 
-    // Load all products from backend once
-    useEffect(() => {
-        let mounted = true;
-        const load = async () => {
-            try {
-                const res = await getProducts();
-                const data = Array.isArray(res?.data) ? res.data : (res?.data?.results || []);
-                // Normalize minimal fields expected by ProductUserCard
-                const normalized = data.map(p => {
-                    let sizesArray = ['ONE SIZE'];
-                    const sizes = p.sizes ?? p.sizes_available;
-                    if (Array.isArray(sizes)) {
-                        // Could be array of strings or array of objects { size, quantity }
-                        if (sizes.length > 0 && typeof sizes[0] === 'object') {
-                            sizesArray = sizes.map(s => String(s.size ?? s.label ?? 'ONE'));
-                        } else {
-                            sizesArray = sizes.map(s => String(s));
-                        }
-                    } else if (sizes && typeof sizes === 'object') {
-                        // Object map like { S: 10, M: 5 }
-                        sizesArray = Object.keys(sizes);
-                    }
-
-                    return {
-                        id: p.id,
-                        name: p.name,
-                        price: Number(p.price || 0),
-                        color: p.color || 'WHITE',
-                        sizes_available: sizesArray,
-                        sizes: p.sizes,
-                        total_stock_by_sizes: p.total_stock_by_sizes,
-                        date: p.created_at || p.date || new Date().toISOString(),
-                    };
-                });
-                if (mounted) setAllProducts(normalized);
-            } catch (e) {
-                console.error('Failed to load products', e);
-                if (mounted) setAllProducts([]);
-            } finally {
-                if (mounted) setLoading(false);
-            }
-        };
-        load();
-        return () => { mounted = false; };
-    }, []);
-
-    // Recompute displayed products when sort option or data changes
-    useEffect(() => {
-        const sorted = handleSort(allProducts);
-        setDisplayedProducts(sorted);
-    }, [allProducts, sortOption, handleSort]);
-
-    const handleSortChange = (e) => {
-        setSortOption(e.target.value);
-    };
-
+  if (loading) {
     return (
-        <div className="font-sans bg-white text-gray-800">
-            <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
-                
-                {/* Filter Bar (Minimalist & Elevated) */}
-                <div className="flex flex-col md:flex-row justify-between items-center py-4 mb-8 border-b border-gray-300 sticky top-0 bg-white z-10 shadow-sm">
-                    
-                    <div className="text-sm font-light uppercase tracking-wider mb-4 md:mb-0">
-                        <span id="product-count">{displayedProducts.length}</span> Items Available
-                        <span id="page-title" className="ml-2 font-medium text-sm block md:inline-block md:ml-4 border-l pl-4 border-gray-300">
-                            ALL PRODUCTS
-                        </span>
-                    </div>
-
-                    {/* Filters: Only Sort remains */}
-                    <div className="flex flex-wrap justify-center md:justify-end gap-3 md:gap-6 text-sm">
-                        
-                        {/* Sort Filter */}
-                        <select 
-                            id="sort-filter" 
-                            value={sortOption}
-                            onChange={handleSortChange}
-                            className="p-2 border border-gray-300 text-gray-800 font-medium uppercase focus:ring-1 focus:ring-black focus:border-black transition duration-200 appearance-none bg-white"
-                            style={{
-                                backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z'/%3E%3C/svg%3E")`,
-                                backgroundRepeat: 'no-repeat',
-                                backgroundPosition: 'right 0.7rem center',
-                                backgroundSize: '0.8em',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            <option value="recent">Sort: Most Recent</option>
-                            <option value="low-high">Sort: Price Low to High</option>
-                            <option value="high-low">Sort: Price High to Low</option>
-                        </select>
-                    </div>
-                </div>
-
-                {/* Product Grid */}
-                {loading ? (
-                    <div className="text-center py-20">
-                        <h2 className="text-xl font-light tracking-wider mb-2">LOADING PRODUCTS...</h2>
-                    </div>
-                ) : displayedProducts.length > 0 ? (
-                    <div id="product-grid" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl-grid-cols-5 gap-4 sm:gap-6 md:gap-8">
-                        {displayedProducts.map(product => (
-                            <ProductUserCard key={product.id} product={product} />
-                        ))}
-                    </div>
-                ) : (
-                    /* Empty State Message */
-                    <div id="empty-state" className="text-center py-20">
-                        <h2 className="text-xl font-light tracking-wider mb-2">NO PRODUCTS FOUND</h2>
-                        <p className="text-gray-500">Try adjusting your sorting options.</p>
-                    </div>
-                )}
-            </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading products...</p>
         </div>
+      </div>
     );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-black text-white px-6 py-2 rounded-md hover:bg-gray-800 transition"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const breadcrumbs = getBreadcrumb();
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Breadcrumb */}
+          {breadcrumbs.length > 0 && (
+            <nav className="mb-4">
+              <ol className="flex items-center space-x-2 text-sm text-gray-500">
+                <li>
+                  <a href="/" className="hover:text-black transition">HOME</a>
+                </li>
+                {breadcrumbs.map((crumb, index) => (
+                  <li key={index} className="flex items-center">
+                    <span className="mx-2">/</span>
+                    {index === breadcrumbs.length - 1 ? (
+                      <span className="text-black font-medium">{crumb.label}</span>
+                    ) : (
+                      <a href={crumb.href} className="hover:text-black transition">
+                        {crumb.label}
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )}
+          
+          <h1 className="text-3xl font-light tracking-wider uppercase text-center">
+            {getPageTitle()}
+          </h1>
+          {products.length > 0 && (
+            <p className="text-center text-gray-600 mt-2">
+              {products.length} {products.length === 1 ? 'product' : 'products'} found
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Products Grid */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {products.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-gray-600 text-lg">No products found matching your criteria.</p>
+            <a 
+              href="/" 
+              className="inline-block mt-4 bg-black text-white px-6 py-2 rounded-md hover:bg-gray-800 transition"
+            >
+              Continue Shopping
+            </a>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {products.map((product) => (
+              <ProductUserCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Debug Info (only in development) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-4 right-4 bg-black text-white p-4 rounded-lg text-xs max-w-sm">
+          <h4 className="font-bold mb-2">Debug Info:</h4>
+          <pre className="whitespace-pre-wrap">
+            {JSON.stringify(filters, null, 2)}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
 };
 
-export default ProductListPage;
+export default Products;

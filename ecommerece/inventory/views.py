@@ -720,7 +720,18 @@ class MasterProductFilterAPIView(APIView):
                 'search': search,
                 'is_live': is_live
             },
-            'count': products.count()
+            'count': products.count(),
+            'meta': {
+                'total_products': products.count(),
+                'filters_applied': {
+                    'gender': bool(gender),
+                    'category': bool(category),
+                    'subcategory': bool(subcategory),
+                    'collection': bool(collection),
+                    'search': bool(search),
+                    'is_live': is_live
+                }
+            }
         }, status=status.HTTP_200_OK)
     
     def delete(self, request, product_id, image_id, *args, **kwargs):
