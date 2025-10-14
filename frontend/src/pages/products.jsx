@@ -71,6 +71,8 @@ const Products = () => {
         console.log('Fetching products with filters:', currentFilters);
         console.log('URL pathname:', pathname);
         console.log('URL params:', params);
+        console.log('Converted category:', currentFilters.category);
+        console.log('Converted subcategory:', currentFilters.subcategory);
         const response = await getFilteredProducts(currentFilters);
         
         setProducts(response.data.products || []);

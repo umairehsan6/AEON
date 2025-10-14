@@ -669,6 +669,11 @@ class MasterProductFilterAPIView(APIView):
         products = Product.objects.all()
         print(f"Initial products count: {products.count()}")
         
+        # Let's see what products exist and their details
+        if products.exists():
+            for product in products[:3]:  # Show first 3 products
+                print(f"Product: {product.name}, Gender: {product.gender}, Category: {product.category.name if product.category else 'None'}, Subcategory: {product.subcategory.name if product.subcategory else 'None'}")
+        
         # Filter by live status
         if is_live:
             products = products.filter(is_live=True)
@@ -683,12 +688,18 @@ class MasterProductFilterAPIView(APIView):
         # Filter by category
         if category:
             print(f"Filtering by category: '{category}'")
+            # Let's see what categories exist
+            all_categories = Category.objects.all()
+            print(f"Available categories: {[c.name for c in all_categories]}")
             products = products.filter(category__name__iexact=category)
             print(f"Products after category filter: {products.count()}")
         
         # Filter by subcategory
         if subcategory:
             print(f"Filtering by subcategory: '{subcategory}'")
+            # Let's see what subcategories exist
+            all_subcategories = SubCategory.objects.all()
+            print(f"Available subcategories: {[s.name for s in all_subcategories]}")
             products = products.filter(subcategory__name__iexact=subcategory)
             print(f"Products after subcategory filter: {products.count()}")
         
