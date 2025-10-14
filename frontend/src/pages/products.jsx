@@ -27,40 +27,43 @@ const Products = () => {
           is_live: true
         };
 
+        // Helper function to convert URL-friendly names back to database names
+        const convertUrlToDbName = (urlName) => {
+          return urlName
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        };
+
         // Determine gender and category from URL path
         const pathname = window.location.pathname;
         if (pathname.startsWith('/women')) {
           currentFilters.gender = 'women';
           if (params.category) {
-            currentFilters.category = params.category;
+            currentFilters.category = convertUrlToDbName(params.category);
           }
           if (params.subcategory) {
-            currentFilters.subcategory = params.subcategory;
+            currentFilters.subcategory = convertUrlToDbName(params.subcategory);
           }
         } else if (pathname.startsWith('/men')) {
           currentFilters.gender = 'men';
           if (params.category) {
-            currentFilters.category = params.category;
+            currentFilters.category = convertUrlToDbName(params.category);
           }
           if (params.subcategory) {
-            currentFilters.subcategory = params.subcategory;
+            currentFilters.subcategory = convertUrlToDbName(params.subcategory);
           }
         } else if (pathname.startsWith('/kids')) {
           currentFilters.gender = 'kids';
           if (params.category) {
-            currentFilters.category = params.category;
+            currentFilters.category = convertUrlToDbName(params.category);
           }
           if (params.subcategory) {
-            currentFilters.subcategory = params.subcategory;
+            currentFilters.subcategory = convertUrlToDbName(params.subcategory);
           }
         } else if (pathname.startsWith('/collection/')) {
           // Convert URL-friendly name back to collection name
-          // e.g., "summer-collection-vol-1" -> "Summer Collection Vol 1"
-          const collectionName = params.collectionName
-            .split('-')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-          currentFilters.collection = collectionName;
+          currentFilters.collection = convertUrlToDbName(params.collectionName);
         }
 
         setFilters(currentFilters);
@@ -194,8 +197,8 @@ const Products = () => {
               {products.length} {products.length === 1 ? 'product' : 'products'} found
             </p>
           )}
-        </div>
-      </div>
+                    </div>
+                </div>
 
       {/* Products Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -208,15 +211,15 @@ const Products = () => {
             >
               Continue Shopping
             </a>
-          </div>
+                    </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.map((product) => (
-              <ProductUserCard key={product.id} product={product} />
-            ))}
-          </div>
-        )}
-      </div>
+                            <ProductUserCard key={product.id} product={product} />
+                        ))}
+                    </div>
+                )}
+            </div>
 
       {/* Debug Info (only in development) */}
       {process.env.NODE_ENV === 'development' && (
@@ -227,8 +230,8 @@ const Products = () => {
           </pre>
         </div>
       )}
-    </div>
-  );
+        </div>
+    );
 };
 
 export default Products;
