@@ -178,7 +178,6 @@ const EditProductModal = ({ product, categories, onSave, onClose }) => {
     const [imageUrl, setImageUrl] = useState(product.image_url || product.imageUrl || '');
     const [description, setDescription] = useState(product.description || '');
 
-    const isAccessory = categoryKey === 'accessories';
     const currentCategory = categories.find(c => c.key === categoryKey);
     const subcategories = currentCategory ? currentCategory.subcategories : [];
     
@@ -1105,8 +1104,8 @@ const ProductManager = ({ categories, setProducts, products }) => {
             </div>
             
             {/* Conditional messaging */}
-            {!genderKey && !isAccessory && <p className='text-xs text-blue-500 mt-2'>Select a Gender/Department above to display relevant sizes.</p>}
-            {totalStock === 0 && (genderKey || isAccessory) && <p className='text-xs text-red-500 mt-2'>Enter stock quantity for at least one size.</p>}
+            {!genderKey && categoryKey !== 'accessories' && <p className='text-xs text-blue-500 mt-2'>Select a Gender/Department above to display relevant sizes.</p>}
+            {totalStock === 0 && (genderKey || categoryKey === 'accessories') && <p className='text-xs text-red-500 mt-2'>Enter stock quantity for at least one size.</p>}
         </div>
 
         {/* 5. ACTION: Make Product Live */}
