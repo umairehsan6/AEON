@@ -664,8 +664,8 @@ const ProductManager = ({ categories, setProducts, products }) => {
     e.preventDefault();
     
     // Final validation
-    if (!name.trim() || !price || !categoryKey || !genderKey || !color.trim() || totalStock === 0) {
-      setError("Please fill in all required fields (Name, Price, Category, Gender, Color) and ensure stock is greater than 0.");
+    if (!name.trim() || !price || !categoryKey || !subcategoryKey || !genderKey || !color.trim() || totalStock === 0) {
+      setError("Please fill in all required fields (Name, Price, Category, Subcategory, Gender, Color) and ensure stock is greater than 0.");
       return;
     }
     
@@ -696,8 +696,14 @@ const ProductManager = ({ categories, setProducts, products }) => {
           sizes: sizesToSave,
           total_stock_by_sizes: sizesToSave,
           is_live: isLive,
-          image_url: imageUrl.trim() || null,
-          description: description.trim() || null
+          image_url: imageUrl.trim() ? [{
+            id: "img_1",
+            url: imageUrl.trim(),
+            alt: `${name} product image`,
+            is_primary: true,
+            order: 1
+          }] : [],
+          description: description.trim() || ""
         };
 
       const response = await postProducts(productData);
@@ -766,8 +772,14 @@ const ProductManager = ({ categories, setProducts, products }) => {
         sizes: updatedProduct.sizes,
         total_stock_by_sizes: updatedProduct.sizes,
         is_live: updatedProduct.isLive,
-        image_url: updatedProduct.imageUrl || null,
-        description: updatedProduct.description || null,
+        image_url: updatedProduct.imageUrl ? [{
+          id: "img_1",
+          url: updatedProduct.imageUrl,
+          alt: `${updatedProduct.name} product image`,
+          is_primary: true,
+          order: 1
+        }] : [],
+        description: updatedProduct.description || "",
         new_inventory_to_add: updatedProduct.newInventoryToAdd || [], // Send new inventory to add
       };
 
