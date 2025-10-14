@@ -667,33 +667,48 @@ class MasterProductFilterAPIView(APIView):
         
         # Start with all products
         products = Product.objects.all()
+        print(f"Initial products count: {products.count()}")
         
         # Filter by live status
         if is_live:
             products = products.filter(is_live=True)
+            print(f"Products after live filter: {products.count()}")
         
         # Filter by gender
         if gender:
+            print(f"Filtering by gender: '{gender}'")
             products = products.filter(gender__iexact=gender)
+            print(f"Products after gender filter: {products.count()}")
         
         # Filter by category
         if category:
+            print(f"Filtering by category: '{category}'")
             products = products.filter(category__name__iexact=category)
+            print(f"Products after category filter: {products.count()}")
         
         # Filter by subcategory
         if subcategory:
+            print(f"Filtering by subcategory: '{subcategory}'")
             products = products.filter(subcategory__name__iexact=subcategory)
+            print(f"Products after subcategory filter: {products.count()}")
         
         # Filter by collection
         if collection:
+            print(f"Looking for collection: '{collection}'")
             # Get collection by name
             try:
                 collection_obj = Collection.objects.get(name__iexact=collection, is_live=True)
+                print(f"Found collection: {collection_obj.name} (ID: {collection_obj.id})")
                 # Get products in this collection
                 collection_products = CollectionProducts.objects.filter(collection=collection_obj)
                 product_ids = [cp.product.id for cp in collection_products]
+                print(f"Collection has {len(product_ids)} products: {product_ids}")
                 products = products.filter(id__in=product_ids)
             except Collection.DoesNotExist:
+                print(f"Collection '{collection}' not found or not live")
+                # Let's see what collections exist
+                all_collections = Collection.objects.all()
+                print(f"Available collections: {[c.name for c in all_collections]}")
                 products = products.none()
         
         # Filter by search query

@@ -54,12 +54,20 @@ const Products = () => {
             currentFilters.subcategory = params.subcategory;
           }
         } else if (pathname.startsWith('/collection/')) {
-          currentFilters.collection = params.collectionName;
+          // Convert URL-friendly name back to collection name
+          // e.g., "summer-collection-vol-1" -> "Summer Collection Vol 1"
+          const collectionName = params.collectionName
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+          currentFilters.collection = collectionName;
         }
 
         setFilters(currentFilters);
 
         console.log('Fetching products with filters:', currentFilters);
+        console.log('URL pathname:', pathname);
+        console.log('URL params:', params);
         const response = await getFilteredProducts(currentFilters);
         
         setProducts(response.data.products || []);
