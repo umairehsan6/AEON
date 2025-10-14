@@ -29,10 +29,23 @@ const Products = () => {
 
         // Helper function to convert URL-friendly names to lowercase database names
         const convertUrlToDbName = (urlName) => {
-          return urlName
-            .split('-')
-            .join(' ')
-            .toLowerCase();
+          // Based on the database values:
+          // Categories: ['tops', 'bottoms', 'footwear', 'accessories'] (no hyphens)
+          // Subcategories: ['t-shirts', 'hoodies', 'casual shirts', 'jeans', 'jackets'] (mixed)
+          
+          // For categories, convert hyphens to spaces
+          // For subcategories, keep hyphens as they are in database
+          if (urlName === 't-shirts') {
+            return 't-shirts'; // Keep hyphen for t-shirts
+          } else if (urlName === 'casual-shirts') {
+            return 'casual shirts'; // Convert to space for casual shirts
+          } else {
+            // Default: convert hyphens to spaces
+            return urlName
+              .split('-')
+              .join(' ')
+              .toLowerCase();
+          }
         };
 
         // Determine gender and category from URL path
