@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { uploadProductImageFiles, validateImageFile } from '../services/images';
-import { uploadMultipleImagesToFirebase, validateImageFile as validateFirebaseImage } from '../services/firebaseStorage';
 
 const ImageUpload = ({ productId, onUploadSuccess, onUploadError }) => {
   const [uploading, setUploading] = useState(false);
@@ -17,7 +16,7 @@ const ImageUpload = ({ productId, onUploadSuccess, onUploadError }) => {
     // Validate each file
     fileArray.forEach((file, index) => {
       try {
-        validateFirebaseImage(file);
+        validateImageFile(file);
         validFiles.push(file);
       } catch (error) {
         errors.push(`File ${index + 1}: ${error.message}`);
@@ -75,26 +74,23 @@ const ImageUpload = ({ productId, onUploadSuccess, onUploadError }) => {
     try {
       const files = previewImages.map(preview => preview.file);
       
-      // Upload to Firebase Storage
-      const firebaseResults = await uploadMultipleImagesToFirebase(
-        files, 
-        productId, 
-        (progress) => setUploadProgress(progress)
-      );
+      // Simulate progress updates for better UX
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + Math.random() * 10;
+        });
+      }, 200);
       
-      // Format results for backend API
-      const imageData = firebaseResults.map((result, index) => ({
-        id: `img_${Date.now()}_${index}`,
-        url: result.url,
-        alt: `Product image ${index + 1}`,
-        is_primary: index === 0, // First image is primary
-        order: index + 1,
-        filename: result.fileName,
-        original_name: result.originalName
-      }));
+      // Upload directly to your Render backend
+      const result = await uploadProductImageFiles(productId, files);
       
-      // Send to backend API
-      const result = await uploadProductImageFiles(productId, imageData);
+      // Complete the progress
+      setUploadProgress(100);
+      clearInterval(progressInterval);
       
       // Clear previews
       previewImages.forEach(preview => URL.revokeObjectURL(preview.preview));
@@ -103,7 +99,7 @@ const ImageUpload = ({ productId, onUploadSuccess, onUploadError }) => {
       onUploadSuccess?.(result);
     } catch (error) {
       console.error('Upload error:', error);
-      onUploadError?.(error.message || 'Upload failed');
+      onUploadError?.(error.response?.data?.error || error.message || 'Upload failed');
     } finally {
       setUploading(false);
       setUploadProgress(0);
