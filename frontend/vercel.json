@@ -5,8 +5,8 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://aeon-c8zq.onrender.com/api/:path*"
+      "source": "/api/(.*)",
+      "destination": "https://aeon-c8zq.onrender.com/api/$1"
     },
     {
       "source": "/(.*)",
