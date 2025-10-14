@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { getUserInfo, getUserRole } from '../services/authutils';
 import { logout } from '../services/auth';
+import { getCategoriesByGender, getFilteredProducts } from '../services/inventory';
+import { getCollections } from '../services/collection';
 // NOTE: NavLink import removed to prevent console errors if component is not
 // rendered inside a <BrowserRouter> or other Router component.
 // All instances replaced with <a> tags.
@@ -15,6 +17,11 @@ function Header() {
   // State to control which nested accordion section (e.g., CLOTHING) is open
   // This uses a unique ID like 'WOMEN-CLOTHING'
   const [openNestedSection, setOpenNestedSection] = useState(null);
+  
+  // State for dynamic data
+  const [categoriesData, setCategoriesData] = useState(null);
+  const [collections, setCollections] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Get user authentication info
   const userInfo = getUserInfo();
@@ -48,70 +55,86 @@ function Header() {
     window.location.href = '/';
   };
 
+  // Fetch dynamic data on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [categoriesResponse, collectionsResponse] = await Promise.all([
+          getCategoriesByGender(),
+          getCollections()
+        ]);
+        
+        setCategoriesData(categoriesResponse);
+        setCollections(collectionsResponse.data.filter(collection => collection.is_live));
+      } catch (error) {
+        console.error('Error fetching sidebar data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Define the comprehensive category data with nested structures for the sidebar
-  const categories = [
-    {
-      title: 'WOMEN',
-      slug: '/women',
-      sections: [
-        { title: 'NEW ARRIVALS', slug: '/women/new-arrivals' },
-        {
-            title: 'CLOTHING',
-            nestedCategories: [
-                { title: 'DRESSES', slug: '/women/dresses' },
-                { title: 'TOPS', slug: '/women/tops' },
-                { title: 'SKIRTS', slug: '/women/skirts' },
-                { title: 'JEANS', slug: '/women/jeans' },
-                { title: 'OUTERWEAR', slug: '/women/outerwear' },
-                { title: 'KNITWEAR', slug: '/women/knitwear' },
-                { title: 'SHORTS', slug: '/women/shorts' },
-                { title: 'CO-ORDS', slug: '/women/co-ords' },
-            ]
-        },
-        { title: 'SHOES', slug: '/women/shoes' },
-        { title: 'ACCESSORIES', slug: '/women/accessories' },
-        { title: 'SALE', slug: '/women/sale', isSale: true },
-      ],
-    },
-    {
-      title: 'MAN',
-      slug: '/man',
-      sections: [
-        { title: 'NEW ARRIVALS', slug: '/man/new-arrivals' },
-        {
-            title: 'CLOTHING',
-            nestedCategories: [
-                { title: 'SHIRTS', slug: '/man/shirts' },
-                { title: 'T-SHIRTS & POLOS', slug: '/man/tshirts-polos' },
-                { title: 'TROUSERS', slug: '/man/trousers' },
-                { title: 'DENIM', slug: '/man/denim' },
-                { title: 'JACKETS & COATS', slug: '/man/jackets-coats' },
-                { title: 'SUITS & BLAZERS', slug: '/man/suits-blazers' },
-                { title: 'SWEATERS & CARDIGANS', slug: '/man/knitwear' },
-            ]
-        },
-        { title: 'SHOES', slug: '/man/shoes' },
-        { title: 'ACCESSORIES', slug: '/man/accessories' },
-        { title: 'SALE', slug: '/man/sale', isSale: true },
-      ],
-    },
-    {
-      title: 'KIDS',
-      slug: '/kids',
-      // For kids, we keep it mostly flat as is common for smaller collections
-      sections: [
-        { title: 'BABY (0-12M)', slug: '/kids/baby' },
-        { title: 'TODDLER (1-5Y)', slug: '/kids/toddler' },
-        { title: 'GIRL (6-14Y)', slug: '/kids/girl' },
-        { title: 'BOY (6-14Y)', slug: '/kids/boy' },
-        { title: 'OUTERWEAR', slug: '/kids/outerwear' },
-        { title: 'SHOES', slug: '/kids/shoes' },
-        { title: 'ACCESSORIES', slug: '/kids/accessories' },
-        { title: 'SALE', slug: '/kids/sale', isSale: true },
-      ],
-    },
-  ];
+    fetchData();
+  }, []);
+
+
+  // Create dynamic categories structure from API data
+  const createDynamicCategories = () => {
+    if (!categoriesData) return [];
+
+    return [
+      {
+        title: 'WOMEN',
+        slug: '/women',
+        sections: [
+          { title: 'NEW ARRIVALS', slug: '/women/new-arrivals' },
+          ...categoriesData.women.categories.map(category => ({
+            title: category.name.toUpperCase(),
+            slug: `/women/${category.key}`,
+            nestedCategories: category.subcategories.length > 0 ? category.subcategories.map(sub => ({
+              title: sub.name.toUpperCase(),
+              slug: `/women/${category.key}/${sub.key}`
+            })) : null
+          })),
+          { title: 'SALE', slug: '/women/sale', isSale: true },
+        ],
+      },
+      {
+        title: 'MEN',
+        slug: '/men',
+        sections: [
+          { title: 'NEW ARRIVALS', slug: '/men/new-arrivals' },
+          ...categoriesData.men.categories.map(category => ({
+            title: category.name.toUpperCase(),
+            slug: `/men/${category.key}`,
+            nestedCategories: category.subcategories.length > 0 ? category.subcategories.map(sub => ({
+              title: sub.name.toUpperCase(),
+              slug: `/men/${category.key}/${sub.key}`
+            })) : null
+          })),
+          { title: 'SALE', slug: '/men/sale', isSale: true },
+        ],
+      },
+      {
+        title: 'KIDS',
+        slug: '/kids',
+        sections: [
+          { title: 'NEW ARRIVALS', slug: '/kids/new-arrivals' },
+          ...categoriesData.kids.categories.map(category => ({
+            title: category.name.toUpperCase(),
+            slug: `/kids/${category.key}`,
+            nestedCategories: category.subcategories.length > 0 ? category.subcategories.map(sub => ({
+              title: sub.name.toUpperCase(),
+              slug: `/kids/${category.key}/${sub.key}`
+            })) : null
+          })),
+          { title: 'SALE', slug: '/kids/sale', isSale: true },
+        ],
+      },
+    ];
+  };
+
+  const categories = createDynamicCategories();
 
   return (
     <div className="font-['Inter']">
@@ -200,7 +223,16 @@ function Header() {
 
           {/* Sidebar Content: Main Accordions (WOMEN, MAN, KIDS) */}
           <div className="flex flex-col space-y-4">
-            {categories.map((section) => {
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="text-sm text-gray-500">Loading categories...</div>
+              </div>
+            ) : categories.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-sm text-gray-500">No categories available</div>
+              </div>
+            ) : (
+              categories.map((section) => {
                 const isMainOpen = openSection === section.title;
                 return (
                     <div key={section.title} className="group border-b border-gray-100 last:border-b-0">
@@ -304,7 +336,8 @@ function Header() {
                         </div>
                     </div>
                 );
-            })}
+            })
+            )}
           </div>
           
           {/* User Account Links - Only show if authenticated */}
@@ -323,6 +356,27 @@ function Header() {
           )}
 
           {/* Footer links for help/stores */}
+          {/* Collections Section */}
+          {collections.length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-lg font-normal uppercase tracking-wider text-gray-800 mb-4">
+                COLLECTIONS
+              </h3>
+              <div className="space-y-2">
+                {collections.map((collection) => (
+                  <a
+                    key={collection.id}
+                    href={`/collection/${collection.name.toLowerCase().replace(/\s+/g, '-')}`}
+                    onClick={toggleSidebar}
+                    className="block text-sm font-light uppercase tracking-wider text-gray-500 hover:text-black transition-colors duration-200 py-1"
+                  >
+                    {collection.name}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="mt-8 pt-6 border-t border-gray-100 space-y-2">
             <a href="/help" onClick={toggleSidebar} className="block text-sm font-light uppercase tracking-wider text-gray-500 hover:text-black transition-colors duration-200 py-1">
                 HELP

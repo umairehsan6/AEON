@@ -1,4 +1,5 @@
 from django.shortcuts import render, get_object_or_404
+from django.db import models
 from .models import Category, SubCategory, Product, Collection , CollectionProducts
 from .serializer import CategorySerializer, SubCategorySerializer, ProductSerializer , CollectionSerializer, CollectionProductsSerializer
 from rest_framework import generics
@@ -640,6 +641,87 @@ class ProductImageFileUploadAPIView(APIView):
 
 class ProductImageFileDeleteAPIView(APIView):
     permission_classes = [IsAdminOrReadOnly]
+
+# Master API for all product filtering
+class MasterProductFilterAPIView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request, *args, **kwargs):
+        """
+        Master API that handles all product filtering based on:
+        - gender (women, men, kids)
+        - category (tops, bottoms, shoes, etc.)
+        - subcategory (t-shirts, jeans, sneakers, etc.)
+        - collection (live collections)
+        - search query
+        """
+        print(f"Master API request: {request.GET}")
+        
+        # Get query parameters
+        gender = request.GET.get('gender', '').lower()
+        category = request.GET.get('category', '').lower()
+        subcategory = request.GET.get('subcategory', '').lower()
+        collection = request.GET.get('collection', '').lower()
+        search = request.GET.get('search', '').strip()
+        is_live = request.GET.get('is_live', 'true').lower() == 'true'
+        
+        # Start with all products
+        products = Product.objects.all()
+        
+        # Filter by live status
+        if is_live:
+            products = products.filter(is_live=True)
+        
+        # Filter by gender
+        if gender:
+            products = products.filter(gender__iexact=gender)
+        
+        # Filter by category
+        if category:
+            products = products.filter(category__name__iexact=category)
+        
+        # Filter by subcategory
+        if subcategory:
+            products = products.filter(subcategory__name__iexact=subcategory)
+        
+        # Filter by collection
+        if collection:
+            # Get collection by name
+            try:
+                collection_obj = Collection.objects.get(name__iexact=collection, is_live=True)
+                # Get products in this collection
+                collection_products = CollectionProducts.objects.filter(collection=collection_obj)
+                product_ids = [cp.product.id for cp in collection_products]
+                products = products.filter(id__in=product_ids)
+            except Collection.DoesNotExist:
+                products = products.none()
+        
+        # Filter by search query
+        if search:
+            products = products.filter(
+                models.Q(name__icontains=search) |
+                models.Q(description__icontains=search) |
+                models.Q(color__icontains=search)
+            )
+        
+        # Serialize and return
+        serializer = ProductSerializer(products, many=True)
+        
+        print(f"Filtered products count: {products.count()}")
+        print(f"Filters applied: gender={gender}, category={category}, subcategory={subcategory}, collection={collection}, search={search}")
+        
+        return Response({
+            'products': serializer.data,
+            'filters': {
+                'gender': gender,
+                'category': category,
+                'subcategory': subcategory,
+                'collection': collection,
+                'search': search,
+                'is_live': is_live
+            },
+            'count': products.count()
+        }, status=status.HTTP_200_OK)
     
     def delete(self, request, product_id, image_id, *args, **kwargs):
         """Delete a specific image file from the server"""

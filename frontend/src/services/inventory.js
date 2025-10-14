@@ -143,3 +143,89 @@ export const deleteProduct = async (id) => {
     return API.delete(`${PRODUCT_URL}${id}/`);
 };
 
+// Master API for all product filtering
+export const getFilteredProducts = async (filters = {}) => {
+    try {
+        console.log('Fetching filtered products with filters:', filters);
+        
+        // Build query parameters
+        const params = new URLSearchParams();
+        
+        if (filters.gender) params.append('gender', filters.gender);
+        if (filters.category) params.append('category', filters.category);
+        if (filters.subcategory) params.append('subcategory', filters.subcategory);
+        if (filters.collection) params.append('collection', filters.collection);
+        if (filters.search) params.append('search', filters.search);
+        if (filters.is_live !== undefined) params.append('is_live', filters.is_live);
+        
+        const queryString = params.toString();
+        const url = queryString ? `${PRODUCT_URL}filter/?${queryString}` : `${PRODUCT_URL}filter/`;
+        
+        console.log('Master API URL:', url);
+        
+        const response = await API.get(url);
+        console.log('Master API response:', response.data);
+        
+        return response;
+    } catch (error) {
+        console.error('Error fetching filtered products:', error);
+        throw error;
+    }
+};
+
+// Get categories organized by gender for sidebar
+export const getCategoriesByGender = async () => {
+    try {
+        console.log('Fetching categories organized by gender');
+        
+        // Get all categories and subcategories
+        const [categoriesResponse, subcategoriesResponse] = await Promise.all([
+            getCategories(),
+            getSubCategories()
+        ]);
+        
+        const categories = categoriesResponse.data;
+        const subcategories = subcategoriesResponse.data;
+        
+        // Organize categories by gender
+        const organizedData = {
+            women: {
+                categories: []
+            },
+            men: {
+                categories: []
+            },
+            kids: {
+                categories: []
+            }
+        };
+        
+        // Process each category
+        categories.forEach(category => {
+            const categorySubcategories = subcategories.filter(sub => sub.category === category.id);
+            
+            const categoryData = {
+                id: category.id,
+                name: category.name,
+                key: category.name.toLowerCase().replace(/\s+/g, '-'),
+                subcategories: categorySubcategories.map(sub => ({
+                    id: sub.id,
+                    name: sub.name,
+                    key: sub.name.toLowerCase().replace(/\s+/g, '-')
+                }))
+            };
+            
+            // Add to all genders (categories can be for any gender)
+            organizedData.women.categories.push(categoryData);
+            organizedData.men.categories.push(categoryData);
+            organizedData.kids.categories.push(categoryData);
+        });
+        
+        console.log('Organized categories by gender:', organizedData);
+        return organizedData;
+    } catch (error) {
+        console.error('Error fetching categories by gender:', error);
+        throw error;
+    }
+};
+

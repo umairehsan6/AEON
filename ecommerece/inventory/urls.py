@@ -6,7 +6,7 @@ from .views import (
     SubCategoryByCategoryAPIView, ProductByCategoryAPIView, ProductBySubCategoryAPIView,
     CollectionProductsListCreateAPIView, CollectionProductsDeleteAPIView,
     ProductImageUploadAPIView, ProductImageDeleteAPIView, ProductImageReorderAPIView, ProductSetPrimaryImageAPIView,
-    ProductImageFileUploadAPIView, ProductImageFileDeleteAPIView
+    ProductImageFileUploadAPIView, ProductImageFileDeleteAPIView, MasterProductFilterAPIView
 )
 
 urlpatterns = [
@@ -40,4 +40,7 @@ urlpatterns = [
     # Product Image File Upload endpoints (File-based for Render)
     path('products/<int:product_id>/upload-images/', ProductImageFileUploadAPIView.as_view(), name='product-image-file-upload'),
     path('products/<int:product_id>/delete-image-file/<str:image_id>/', ProductImageFileDeleteAPIView.as_view(), name='product-image-file-delete'),
+    
+    # Master API for all product filtering
+    path('products/filter/', MasterProductFilterAPIView.as_view(), name='master-product-filter'),
 ]
