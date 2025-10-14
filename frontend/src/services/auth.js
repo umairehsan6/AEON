@@ -1,8 +1,6 @@
 import API from "../api/axios";
 import { refreshWithStoredToken } from "../api/axios";
-// safe jwt-decode import for ESM/CJS builds
-import * as jwtDecodeModule from "jwt-decode";
-const jwtDecode = jwtDecodeModule?.default ?? jwtDecodeModule;
+import { jwtDecode } from "jwt-decode";
 
 const SIGNUP_URL = "/api/user/signup/";
 const LOGIN_URL = "/api/user/login/";
