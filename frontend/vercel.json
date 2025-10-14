@@ -3,7 +3,6 @@
   "outputDirectory": "dist",
   "installCommand": "npm ci",
   "framework": "vite",
-  "nodeVersion": "18.x",
   "rewrites": [
     {
       "source": "/api/:path*",
