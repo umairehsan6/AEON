@@ -13,9 +13,12 @@ import {
 } from '../services/inventory';
 
 // --- CONSTANTS ---
-const ADULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL' , "ONE SIZE"]; // Standard sizes
+const ADULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']; // Standard clothing sizes
 const SHOE_SIZES = ['35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46']; // Shoe sizes
 const KIDS_SIZES = ['2-3Y', '4-5Y', '6-7Y', '8-9Y', '10-11Y', '12-13Y']; // Age-based sizes
+const JEANS_SIZES = ['28', '30', '32', '34', '36', '38', '40', '42', '44', '46']; // Waist sizes for jeans
+const CAP_SIZES = ['S/M', 'L/XL', 'ONE SIZE']; // Cap sizes
+const ONE_SIZE = ['ONE SIZE']; // For accessories and one-size items
 const GENDER_OPTIONS = [
     { name: 'WOMAN', key: 'woman' },
     { name: 'MAN', key: 'man' },
@@ -30,6 +33,8 @@ const INITIAL_PRODUCT_CATEGORIES = [
       { name: 'T-SHIRTS', key: 't-shirts' },
       { name: 'SHIRTS', key: 'shirts' },
       { name: 'SWEATERS', key: 'sweaters' },
+      { name: 'HOODIES', key: 'hoodies' },
+      { name: 'JACKETS', key: 'jackets' },
     ],
   },
   {
@@ -39,6 +44,27 @@ const INITIAL_PRODUCT_CATEGORIES = [
       { name: 'JEANS', key: 'jeans' },
       { name: 'TROUSERS', key: 'trousers' },
       { name: 'SHORTS', key: 'shorts' },
+      { name: 'SKIRTS', key: 'skirts' },
+    ],
+  },
+  {
+    name: 'SHOES',
+    key: 'shoes',
+    subcategories: [
+      { name: 'SNEAKERS', key: 'sneakers' },
+      { name: 'BOOTS', key: 'boots' },
+      { name: 'SANDALS', key: 'sandals' },
+      { name: 'HEELS', key: 'heels' },
+      { name: 'FLATS', key: 'flats' },
+    ],
+  },
+  {
+    name: 'HEADWEAR',
+    key: 'headwear',
+    subcategories: [
+      { name: 'CAPS', key: 'caps' },
+      { name: 'HATS', key: 'hats' },
+      { name: 'BEANIES', key: 'beanies' },
     ],
   },
   {
@@ -47,6 +73,9 @@ const INITIAL_PRODUCT_CATEGORIES = [
     subcategories: [
       { name: 'BAGS', key: 'bags' },
       { name: 'JEWELRY', key: 'jewelry' },
+      { name: 'BELTS', key: 'belts' },
+      { name: 'WATCHES', key: 'watches' },
+      { name: 'SUNGLASSES', key: 'sunglasses' },
     ],
   },
 ];
@@ -62,13 +91,46 @@ const INITIAL_PRODUCTS = [
 // Utility function
 const toKey = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-// Helper to determine the correct size set for a gender/department
-const getActiveSizes = (genderKey, isAccessory, categoryKey) => {
-    if (isAccessory) return ['N/A'];
-    if (categoryKey === 'shoes') return SHOE_SIZES;
+// Helper to determine the correct size set based on category, subcategory, and gender
+const getActiveSizes = (categoryKey, subcategoryKey, genderKey) => {
+    // Accessories - always one size
+    if (categoryKey === 'accessories') {
+        return ONE_SIZE;
+    }
+    
+    // Shoes - always shoe sizes
+    if (categoryKey === 'shoes') {
+        return SHOE_SIZES;
+    }
+    
+    // Headwear - cap sizes
+    if (categoryKey === 'headwear') {
+        if (subcategoryKey === 'caps') {
+            return CAP_SIZES;
+        }
+        // Other headwear (hats, beanies) - one size
+        return ONE_SIZE;
+    }
+    
+    // Bottoms - special handling for jeans
+    if (categoryKey === 'bottoms') {
+        if (subcategoryKey === 'jeans') {
+            return JEANS_SIZES;
+        }
+        // Other bottoms (trousers, shorts, skirts) - standard sizes
+        if (genderKey === 'kids') return KIDS_SIZES;
+        return ADULT_SIZES;
+    }
+    
+    // Tops - standard clothing sizes
+    if (categoryKey === 'tops') {
+        if (genderKey === 'kids') return KIDS_SIZES;
+        return ADULT_SIZES;
+    }
+    
+    // Default fallback
     if (genderKey === 'kids') return KIDS_SIZES;
-    if (genderKey === 'woman' || genderKey === 'man') return ADULT_SIZES;
-    return [];
+    return ADULT_SIZES;
 };
 
 // --- 2. ADMIN COMPONENTS ---
@@ -121,7 +183,7 @@ const EditProductModal = ({ product, categories, onSave, onClose }) => {
     const subcategories = currentCategory ? currentCategory.subcategories : [];
     
     // Determine the active size list and initialize quantities based on current product data
-    const activeSizes = getActiveSizes(genderKey, isAccessory, categoryKey);
+    const activeSizes = getActiveSizes(categoryKey, subcategoryKey, genderKey);
     
     // Separate state for existing inventory (read-only) and new inventory to add
     const [existingInventory, setExistingInventory] = useState(() => {
@@ -614,9 +676,7 @@ const ProductManager = ({ categories, setProducts, products }) => {
   const [isLive, setIsLive] = useState(false); // New field for product visibility
   
   // State to hold quantity for all possible sizes.
-  const [sizeQuantities, setSizeQuantities] = useState(
-    ADULT_SIZES.reduce((acc, size) => ({ ...acc, [size]: 0 }), {})
-  );
+  const [sizeQuantities, setSizeQuantities] = useState({});
   
   const [imageUrl, setImageUrl] = useState('');
   const [description, setDescription] = useState('');
@@ -632,20 +692,19 @@ const ProductManager = ({ categories, setProducts, products }) => {
   const currentCategory = categories.find(c => c.key === categoryKey);
   const subcategories = currentCategory ? currentCategory.subcategories : [];
 
-  // Determine the active set of sizes based on the selected Gender/Department
-  const isAccessory = categoryKey === 'accessories';
-  const activeSizes = getActiveSizes(genderKey, isAccessory, categoryKey);
+  // Determine the active set of sizes based on the selected Category/Subcategory/Gender
+  const activeSizes = getActiveSizes(categoryKey, subcategoryKey, genderKey);
   
-  // EFFECT: Reset size quantities when the Gender key changes or category changes (for Accessories)
+  // EFFECT: Reset size quantities when the Category, Subcategory, or Gender changes
   useEffect(() => {
-    if (genderKey || isAccessory) {
+    if (categoryKey || subcategoryKey || genderKey) {
         const newQuantities = activeSizes.reduce((acc, size) => ({ 
             ...acc, 
             [size]: 0 
         }), {});
         setSizeQuantities(newQuantities);
     }
-  }, [genderKey, isAccessory]);
+  }, [categoryKey, subcategoryKey, genderKey, activeSizes]);
   
   // Calculate total stock automatically
   const totalStock = activeSizes.reduce((sum, size) => sum + (parseInt(sizeQuantities[size]) || 0), 0);
@@ -734,7 +793,7 @@ const ProductManager = ({ categories, setProducts, products }) => {
       setGenderKey('');
       setColor('');
       setIsLive(false);
-      setSizeQuantities(ADULT_SIZES.reduce((acc, size) => ({ ...acc, [size]: 0 }), {})); 
+      setSizeQuantities({}); 
       setImageUrl('');
       setDescription('');
       
@@ -1010,10 +1069,16 @@ const ProductManager = ({ categories, setProducts, products }) => {
             <div className='flex justify-between items-center mb-4'>
                 <label className="block text-sm font-bold text-gray-800">
                     Stock by Size 
-                    {genderKey === 'kids' && ' (Age Range)'}
-                    {(genderKey === 'woman' || genderKey === 'man') && ' (Apparel Size)'}
-                    {isAccessory && ' (One-Size Stock)'}
-                    {!genderKey && ' (Select Gender to determine sizes)'}
+                    {categoryKey === 'shoes' && ' (Shoe Sizes)'}
+                    {categoryKey === 'bottoms' && subcategoryKey === 'jeans' && ' (Waist Sizes)'}
+                    {categoryKey === 'headwear' && subcategoryKey === 'caps' && ' (Cap Sizes)'}
+                    {categoryKey === 'headwear' && subcategoryKey !== 'caps' && ' (One Size)'}
+                    {categoryKey === 'accessories' && ' (One Size)'}
+                    {categoryKey === 'tops' && genderKey === 'kids' && ' (Age Range)'}
+                    {categoryKey === 'bottoms' && subcategoryKey !== 'jeans' && genderKey === 'kids' && ' (Age Range)'}
+                    {categoryKey === 'tops' && genderKey !== 'kids' && ' (Apparel Sizes)'}
+                    {categoryKey === 'bottoms' && subcategoryKey !== 'jeans' && genderKey !== 'kids' && ' (Apparel Sizes)'}
+                    {!categoryKey && ' (Select Category to determine sizes)'}
                 </label>
                 <div className='text-base font-extrabold bg-black text-white px-4 py-1.5 rounded-lg shadow-md'>
                     TOTAL STOCK: {totalStock}
