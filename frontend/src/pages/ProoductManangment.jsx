@@ -749,7 +749,7 @@ const ProductManager = ({ categories, setProducts, products }) => {
           price: parseFloat(price),
           category: selectedCategory.id,
           subcategory: selectedSubcategory ? selectedSubcategory.id : null,
-          gender: genderKey,
+          gender: genderKey.toLowerCase(),
           color: color?.toUpperCase() || '',
           sizes: sizesToSave,
           total_stock_by_sizes: sizesToSave,
@@ -825,7 +825,7 @@ const ProductManager = ({ categories, setProducts, products }) => {
         price: updatedProduct.price,
         category: selectedCategory.id, // API expects category ID, not category_id
         subcategory: selectedSubcategory ? selectedSubcategory.id : null, // API expects subcategory ID, not subcategory_id
-        gender: updatedProduct.gender,
+        gender: updatedProduct.gender.toLowerCase(),
         color: updatedProduct.color,
         sizes: updatedProduct.sizes,
         total_stock_by_sizes: updatedProduct.sizes,

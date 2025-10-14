@@ -657,11 +657,11 @@ class MasterProductFilterAPIView(APIView):
         """
         print(f"Master API request: {request.GET}")
         
-        # Get query parameters
-        gender = request.GET.get('gender', '').lower()
-        category = request.GET.get('category', '').lower()
-        subcategory = request.GET.get('subcategory', '').lower()
-        collection = request.GET.get('collection', '').lower()
+        # Get query parameters - normalize everything to lowercase
+        gender = request.GET.get('gender', '').lower().strip()
+        category = request.GET.get('category', '').lower().strip()
+        subcategory = request.GET.get('subcategory', '').lower().strip()
+        collection = request.GET.get('collection', '').lower().strip()
         search = request.GET.get('search', '').strip()
         is_live = request.GET.get('is_live', 'true').lower() == 'true'
         
@@ -685,7 +685,7 @@ class MasterProductFilterAPIView(APIView):
             products = products.filter(gender__iexact=gender)
             print(f"Products after gender filter: {products.count()}")
         
-        # Filter by category
+        # Filter by category (case-insensitive)
         if category:
             print(f"Filtering by category: '{category}'")
             # Let's see what categories exist
@@ -694,7 +694,7 @@ class MasterProductFilterAPIView(APIView):
             products = products.filter(category__name__iexact=category)
             print(f"Products after category filter: {products.count()}")
         
-        # Filter by subcategory
+        # Filter by subcategory (case-insensitive)
         if subcategory:
             print(f"Filtering by subcategory: '{subcategory}'")
             # Let's see what subcategories exist

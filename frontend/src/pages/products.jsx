@@ -27,12 +27,12 @@ const Products = () => {
           is_live: true
         };
 
-        // Helper function to convert URL-friendly names back to database names
+        // Helper function to convert URL-friendly names to lowercase database names
         const convertUrlToDbName = (urlName) => {
           return urlName
             .split('-')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
+            .join(' ')
+            .toLowerCase();
         };
 
         // Determine gender and category from URL path
