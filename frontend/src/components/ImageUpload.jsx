@@ -1,8 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { uploadProductImageFiles, validateImageFile } from '../services/images';
+import { uploadMultipleImagesToFirebase, validateImageFile as validateFirebaseImage } from '../services/firebaseStorage';
 
 const ImageUpload = ({ productId, onUploadSuccess, onUploadError }) => {
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
   const [previewImages, setPreviewImages] = useState([]);
   const fileInputRef = useRef(null);
@@ -15,7 +17,7 @@ const ImageUpload = ({ productId, onUploadSuccess, onUploadError }) => {
     // Validate each file
     fileArray.forEach((file, index) => {
       try {
-        validateImageFile(file);
+        validateFirebaseImage(file);
         validFiles.push(file);
       } catch (error) {
         errors.push(`File ${index + 1}: ${error.message}`);
@@ -68,9 +70,31 @@ const ImageUpload = ({ productId, onUploadSuccess, onUploadError }) => {
     if (previewImages.length === 0) return;
 
     setUploading(true);
+    setUploadProgress(0);
+    
     try {
       const files = previewImages.map(preview => preview.file);
-      const result = await uploadProductImageFiles(productId, files);
+      
+      // Upload to Firebase Storage
+      const firebaseResults = await uploadMultipleImagesToFirebase(
+        files, 
+        productId, 
+        (progress) => setUploadProgress(progress)
+      );
+      
+      // Format results for backend API
+      const imageData = firebaseResults.map((result, index) => ({
+        id: `img_${Date.now()}_${index}`,
+        url: result.url,
+        alt: `Product image ${index + 1}`,
+        is_primary: index === 0, // First image is primary
+        order: index + 1,
+        filename: result.fileName,
+        original_name: result.originalName
+      }));
+      
+      // Send to backend API
+      const result = await uploadProductImageFiles(productId, imageData);
       
       // Clear previews
       previewImages.forEach(preview => URL.revokeObjectURL(preview.preview));
@@ -78,9 +102,11 @@ const ImageUpload = ({ productId, onUploadSuccess, onUploadError }) => {
       
       onUploadSuccess?.(result);
     } catch (error) {
-      onUploadError?.(error.response?.data?.error || 'Upload failed');
+      console.error('Upload error:', error);
+      onUploadError?.(error.message || 'Upload failed');
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -197,6 +223,22 @@ const ImageUpload = ({ productId, onUploadSuccess, onUploadError }) => {
               {uploading ? 'Uploading...' : `Upload ${previewImages.length} Image${previewImages.length !== 1 ? 's' : ''}`}
             </button>
           </div>
+          
+          {/* Upload Progress Bar */}
+          {uploading && (
+            <div className="mt-4">
+              <div className="flex justify-between text-sm text-gray-600 mb-1">
+                <span>Uploading images...</span>
+                <span>{Math.round(uploadProgress)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

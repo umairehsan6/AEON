@@ -13,6 +13,8 @@ import {
   Package,
   Circle, // Used as a default icon for sub-items without specific icons
   X, // Close icon for mobile
+  User, // User view icon
+  Shield, // Admin view icon
 } from 'lucide-react';
 
 // --- UI Data --- 
@@ -147,6 +149,43 @@ export const AdminSidebar = ({ onClose }) => {
         <p className="text-xs text-gray-500 mt-1 tracking-wider uppercase">
           ADMIN PANEL
         </p>
+      </div>
+
+      {/* Role Switching Section */}
+      <div className="px-6 mb-6">
+        <div className="bg-gray-50 rounded-lg p-3">
+          <p className="text-xs text-gray-600 mb-2 font-medium uppercase tracking-wide">Switch View</p>
+          <div className="flex space-x-2">
+            <NavLink
+              to="/admin"
+              className={({ isActive }) => 
+                `flex items-center px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                  isActive 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                }`
+              }
+              onClick={onClose}
+            >
+              <Shield className="w-3 h-3 mr-1" />
+              Admin
+            </NavLink>
+            <NavLink
+              to="/"
+              className={({ isActive }) => 
+                `flex items-center px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                  isActive 
+                    ? 'bg-green-600 text-white' 
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                }`
+              }
+              onClick={onClose}
+            >
+              <User className="w-3 h-3 mr-1" />
+              User
+            </NavLink>
+          </div>
+        </div>
       </div>
 
       {/* 2. Primary Navigation (Core Operations) - Iterates over the simplified list */}
