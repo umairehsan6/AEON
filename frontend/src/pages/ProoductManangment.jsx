@@ -244,7 +244,7 @@ const EditProductModal = ({ product, categories, onSave, onClose }) => {
         e.preventDefault();
 
         // Basic validation
-        if (!name.trim() || !price || !categoryKey || !genderKey || !color.trim()) {
+        if (!name?.trim() || !price || !categoryKey || !genderKey || !color?.trim()) {
             console.error("Please ensure all required fields are filled.");
             return;
         }
@@ -270,8 +270,8 @@ const EditProductModal = ({ product, categories, onSave, onClose }) => {
             sizes: finalInventory,
             totalStock: totalStockAfterUpdate,
             isLive: isLive,
-            imageUrl: imageUrl.trim(),
-            description: description.trim(),
+            imageUrl: imageUrl?.trim() || '',
+            description: description?.trim() || '',
             newInventoryToAdd: newInventoryToAdd, // This will be used by the backend
         };
 
@@ -466,7 +466,7 @@ const EditProductModal = ({ product, categories, onSave, onClose }) => {
                             <button 
                                 type="submit" 
                                 className="bg-black text-white px-8 py-3 rounded-md flex items-center justify-center hover:bg-gray-800 transition tracking-wider uppercase shadow-md disabled:opacity-50"
-                                disabled={!categoryKey || !name.trim() || !price || !color.trim()}
+                                disabled={!categoryKey || !name?.trim() || !price || !color?.trim()}
                             >
                                 <Pencil size={18} className='mr-2' /> 
                                 {totalNewInventory > 0 ? 'Add Inventory & Update' : 'Update Product'}
@@ -491,7 +491,7 @@ const CategoryManager = ({ categories, setCategories }) => {
 
   const handleAddCategory = async (e) => {
     e.preventDefault();
-    if (!newCategoryName.trim()) return;
+    if (!newCategoryName?.trim()) return;
 
     try {
       setLoading(true);
@@ -521,7 +521,7 @@ const CategoryManager = ({ categories, setCategories }) => {
 
   const handleAddSubcategory = async (e) => {
     e.preventDefault();
-    if (!parentCategoryKey || !newSubcategoryName.trim()) return;
+    if (!parentCategoryKey || !newSubcategoryName?.trim()) return;
 
     try {
       setLoading(true);
@@ -723,7 +723,7 @@ const ProductManager = ({ categories, setProducts, products }) => {
     e.preventDefault();
     
     // Final validation
-    if (!name.trim() || !price || !categoryKey || !subcategoryKey || !genderKey || !color.trim() || totalStock === 0) {
+    if (!name?.trim() || !price || !categoryKey || !subcategoryKey || !genderKey || !color?.trim() || totalStock === 0) {
       setError("Please fill in all required fields (Name, Price, Category, Subcategory, Gender, Color) and ensure stock is greater than 0.");
       return;
     }
@@ -755,14 +755,14 @@ const ProductManager = ({ categories, setProducts, products }) => {
           sizes: sizesToSave,
           total_stock_by_sizes: sizesToSave,
           is_live: isLive,
-          image_url: imageUrl.trim() ? [{
+          image_url: imageUrl?.trim() ? [{
             id: "img_1",
             url: imageUrl.trim(),
             alt: `${name} product image`,
             is_primary: true,
             order: 1
           }] : [],
-          description: description.trim() || ""
+          description: description?.trim() || ""
         };
 
       const response = await postProducts(productData);
@@ -1127,7 +1127,7 @@ const ProductManager = ({ categories, setProducts, products }) => {
         <div className="md:col-span-4 mt-2">
           <button 
             type="submit" 
-            disabled={loading || !categoryKey || !genderKey || totalStock === 0 || !name.trim() || !price || !color.trim()}
+            disabled={loading || !categoryKey || !genderKey || totalStock === 0 || !name?.trim() || !price || !color?.trim()}
             className="w-full bg-black text-white px-4 py-3 rounded-md flex items-center justify-center hover:bg-gray-800 transition tracking-wider uppercase shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
