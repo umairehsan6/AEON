@@ -68,6 +68,10 @@ const ProductUserCard = ({ product }) => {
                 });
             }
             
+            console.log('Processed inventory for product:', product.name, {
+                originalSizes: sizes,
+                processedInventoryMap: inventoryMap
+            });
             setSizeInventory(inventoryMap);
         }
     }, [product]);
@@ -80,6 +84,15 @@ const ProductUserCard = ({ product }) => {
     const isSizeAvailable = (size) => {
         const quantity = sizeInventory[size] || 0;
         const isAvailable = quantity > 0;
+        
+        // Debug logging
+        console.log(`Checking size availability for "${size}":`, {
+            sizeInventory,
+            quantity,
+            isAvailable,
+            productName: product.name
+        });
+        
         return isAvailable;
     };
 

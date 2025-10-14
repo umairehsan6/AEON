@@ -673,6 +673,9 @@ class MasterProductFilterAPIView(APIView):
         if products.exists():
             for product in products[:3]:  # Show first 3 products
                 print(f"Product: {product.name}, Gender: {product.gender}, Category: {product.category.name if product.category else 'None'}, Subcategory: {product.subcategory.name if product.subcategory else 'None'}")
+                print(f"  - Sizes: {product.sizes}")
+                print(f"  - Total Stock by Sizes: {product.total_stock_by_sizes}")
+                print(f"  - Is Live: {product.is_live}")
         
         # Filter by live status
         if is_live:
