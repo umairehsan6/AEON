@@ -785,6 +785,7 @@ const ProductManager = ({ categories, setProducts, products }) => {
 
       console.log('Updating product with data:', productData);
       console.log('Sizes data being sent:', updatedProduct.sizes);
+      console.log('New inventory to add:', updatedProduct.newInventoryToAdd);
 
       const response = await updateProduct(updatedProduct.id, productData);
       
@@ -818,7 +819,35 @@ const ProductManager = ({ categories, setProducts, products }) => {
       
     } catch (err) {
       console.error('Error updating product:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to update product');
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      
+      // Handle specific error cases
+      if (err.response?.status === 400) {
+        const errorData = err.response.data;
+        if (typeof errorData === 'object') {
+          // Handle validation errors
+          const errorMessages = [];
+          for (const [field, messages] of Object.entries(errorData)) {
+            if (Array.isArray(messages)) {
+              errorMessages.push(`${field}: ${messages.join(', ')}`);
+            } else {
+              errorMessages.push(`${field}: ${messages}`);
+            }
+          }
+          setError(`Validation Error: ${errorMessages.join('; ')}`);
+        } else {
+          setError(`Bad Request: ${errorData}`);
+        }
+      } else if (err.response?.status === 401) {
+        setError('Authentication failed. Please log in again.');
+      } else if (err.response?.status === 403) {
+        setError('You do not have permission to update this product.');
+      } else if (err.response?.status === 404) {
+        setError('Product not found.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Failed to update product');
+      }
     } finally {
       setLoading(false);
     }

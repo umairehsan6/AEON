@@ -121,9 +121,20 @@ export const getProductsBySubCategory = async (subcategoryId) => {
 };
 
 export const updateProduct = async (id, productData) => {
-    checkAuth();
-    setAuthHeader();
-    return API.put(`${PRODUCT_URL}${id}/`, productData);
+    try {
+        checkAuth();
+        setAuthHeader();
+        console.log('Sending update request to:', `${PRODUCT_URL}${id}/`);
+        console.log('Request data:', productData);
+        const response = await API.put(`${PRODUCT_URL}${id}/`, productData);
+        console.log('Update response received:', response.data);
+        return response;
+    } catch (error) {
+        console.error('Update product error:', error);
+        console.error('Error response:', error.response?.data);
+        console.error('Error status:', error.response?.status);
+        throw error;
+    }
 };
 
 export const deleteProduct = async (id) => {

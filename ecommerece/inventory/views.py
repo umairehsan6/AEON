@@ -141,8 +141,14 @@ class ProductDetailAPIView(APIView):
     def put(self, request, pk, *args, **kwargs):
         product = self.get_object(pk)
         
+        print(f"PUT request for product {pk}: {product.name}")
+        print(f"Request data: {request.data}")
+        print(f"Request user: {request.user}")
+        print(f"User is authenticated: {request.user.is_authenticated}")
+        
         # Check if we need to add new inventory instead of replacing
         new_inventory_to_add = request.data.get('new_inventory_to_add', [])
+        print(f"New inventory to add: {new_inventory_to_add}")
         
         if new_inventory_to_add:
             print(f"Adding new inventory to product {product.name}: {new_inventory_to_add}")
@@ -194,8 +200,11 @@ class ProductDetailAPIView(APIView):
         
         if serializer.is_valid():
             serializer.save()
+            print(f"Product {pk} updated successfully")
             return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            print(f"Serializer validation failed for product {pk}: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk, *args, **kwargs):
         product = self.get_object(pk)
