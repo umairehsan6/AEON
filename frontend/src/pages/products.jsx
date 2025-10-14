@@ -40,7 +40,15 @@ const Products = () => {
         if (pathname.startsWith('/women')) {
           currentFilters.gender = 'women';
           if (params.category) {
-            currentFilters.category = convertUrlToDbName(params.category);
+            // Handle special cases
+            if (params.category === 'new-arrivals') {
+              // For new arrivals, don't filter by category - just show all women's products
+              // You could add a date filter here if you have a created_at field
+            } else if (params.category === 'sale') {
+              // For sale, you could add a sale filter here if you have a sale field
+            } else {
+              currentFilters.category = convertUrlToDbName(params.category);
+            }
           }
           if (params.subcategory) {
             currentFilters.subcategory = convertUrlToDbName(params.subcategory);
@@ -48,7 +56,14 @@ const Products = () => {
         } else if (pathname.startsWith('/men')) {
           currentFilters.gender = 'men';
           if (params.category) {
-            currentFilters.category = convertUrlToDbName(params.category);
+            // Handle special cases
+            if (params.category === 'new-arrivals') {
+              // For new arrivals, don't filter by category - just show all men's products
+            } else if (params.category === 'sale') {
+              // For sale, you could add a sale filter here if you have a sale field
+            } else {
+              currentFilters.category = convertUrlToDbName(params.category);
+            }
           }
           if (params.subcategory) {
             currentFilters.subcategory = convertUrlToDbName(params.subcategory);
@@ -56,7 +71,14 @@ const Products = () => {
         } else if (pathname.startsWith('/kids')) {
           currentFilters.gender = 'kids';
           if (params.category) {
-            currentFilters.category = convertUrlToDbName(params.category);
+            // Handle special cases
+            if (params.category === 'new-arrivals') {
+              // For new arrivals, don't filter by category - just show all kids' products
+            } else if (params.category === 'sale') {
+              // For sale, you could add a sale filter here if you have a sale field
+            } else {
+              currentFilters.category = convertUrlToDbName(params.category);
+            }
           }
           if (params.subcategory) {
             currentFilters.subcategory = convertUrlToDbName(params.subcategory);
