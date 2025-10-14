@@ -91,16 +91,25 @@ const Collection = () => {
     const handleToggleLive = async (collectionId, currentStatus) => {
         const nextStatus = !currentStatus;
         const prevCollections = collections;
+        
+        console.log(`Toggling collection ${collectionId} from ${currentStatus} to ${nextStatus}`);
+        
         // Optimistic UI
         setCollections(prev => prev.map(collection => 
             collection.id === collectionId ? { ...collection, isLive: nextStatus } : collection
         ));
+        
         try {
-            await updateCollection(collectionId, { is_live: nextStatus });
+            const response = await updateCollection(collectionId, { is_live: nextStatus });
+            console.log('Collection status updated successfully:', response.data);
         } catch (error) {
             console.error('Failed to update collection status:', error);
+            console.error('Error response:', error.response?.data);
+            console.error('Error status:', error.response?.status);
+            
             // Roll back on error
             setCollections(prevCollections);
+            setError(`Failed to update collection status: ${error.response?.data?.message || error.message || 'Unknown error'}`);
         }
     };
 

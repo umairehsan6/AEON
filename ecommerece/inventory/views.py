@@ -272,19 +272,34 @@ class CollectionDetailAPIView(APIView):
 
     def put(self, request, pk, *args, **kwargs):
         collection = self.get_object(pk)
+        print(f"PUT request for collection {pk}: {request.data}")
+        print(f"Request user: {request.user}")
+        print(f"User is authenticated: {request.user.is_authenticated}")
+        
         serializer = CollectionSerializer(collection, data=request.data)
         if serializer.is_valid():
             serializer.save()
+            print(f"Collection {pk} updated successfully via PUT")
             return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            print(f"Collection {pk} PUT validation failed: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def patch(self, request, pk, *args, **kwargs):
         collection = self.get_object(pk)
+        print(f"PATCH request for collection {pk}: {request.data}")
+        print(f"Request user: {request.user}")
+        print(f"User is authenticated: {request.user.is_authenticated}")
+        print(f"Current collection data: name={collection.name}, is_live={collection.is_live}")
+        
         serializer = CollectionSerializer(collection, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            print(f"Collection {pk} updated successfully via PATCH")
             return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            print(f"Collection {pk} PATCH validation failed: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk, *args, **kwargs):
         collection = self.get_object(pk)

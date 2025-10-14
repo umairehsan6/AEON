@@ -26,9 +26,19 @@ export const getCollections = async () => {
 };
 
 export const updateCollection = async (collectionId, data) => {
-    checkAuth();
-    setAuthHeader();
-    return API.put(`${COLLECTION_URL}${collectionId}/`, data);
+    try {
+        checkAuth();
+        setAuthHeader();
+        console.log('Updating collection:', { collectionId, data });
+        const response = await API.patch(`${COLLECTION_URL}${collectionId}/`, data);
+        console.log('Collection update response:', response.data);
+        return response;
+    } catch (error) {
+        console.error('Collection update error:', error);
+        console.error('Error response:', error.response?.data);
+        console.error('Error status:', error.response?.status);
+        throw error;
+    }
 };
 
 export const setCollectionProducts = async (collectionId, productIds) => {
