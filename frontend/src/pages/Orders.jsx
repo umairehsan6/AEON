@@ -258,7 +258,7 @@ const OrdersPage = () => {
                                             </div>
                                             <button
                                                 onClick={() => handleCancelOrder(order.id)}
-                                                disabled={!cancelReason.trim()}
+                                                disabled={!cancelReason?.trim()}
                                                 className="px-4 py-2 text-xs uppercase tracking-widest bg-red-600 text-white hover:bg-red-700 transition duration-200 disabled:opacity-50 rounded-md"
                                             >
                                                 Cancel Order

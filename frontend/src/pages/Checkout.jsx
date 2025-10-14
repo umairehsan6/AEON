@@ -88,11 +88,11 @@ const CheckoutPage = () => {
         e.preventDefault();
         
         // Validate required fields
-        if (!firstAddress.trim()) {
+        if (!firstAddress?.trim()) {
             alert('Please enter your first address.');
             return;
         }
-        if (!secondAddress.trim()) {
+        if (!secondAddress?.trim()) {
             alert('Please enter your second address.');
             return;
         }

@@ -30,7 +30,7 @@ export const checkAuth = () => {
 // CATEGORY API FUNCTIONS
 export const postCategories = async (categoryData) => {
     // Validate input data
-    if (!categoryData.name || categoryData.name.trim() === "") {
+    if (!categoryData.name || categoryData.name?.trim() === "") {
         throw new Error("Category name is required");
     }
     checkAuth(); // This will throw if not authenticated
@@ -57,7 +57,7 @@ export const deleteCategory = async (id) => {
 
 // SUBCATEGORY API FUNCTIONS
 export const postSubCategories = async (subcategoryData) => {
-    if (!subcategoryData.name || subcategoryData.name.trim() === "") {
+    if (!subcategoryData.name || subcategoryData.name?.trim() === "") {
         throw new Error("Subcategory name is required");
     }
     if (!subcategoryData.category) {
@@ -92,7 +92,7 @@ export const deleteSubCategory = async (id) => {
 
 // PRODUCT API FUNCTIONS
 export const postProducts = async (productData) => {
-    if (!productData.name || productData.name.trim() === "") {
+    if (!productData.name || productData.name?.trim() === "") {
         throw new Error("Product name is required");
     }
     checkAuth();

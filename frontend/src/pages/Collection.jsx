@@ -60,12 +60,12 @@ const Collection = () => {
 
     // 1. CREATE COLLECTION (API Call)
     const handleCreateCollection = async (collectionName) => {
-        if (!collectionName.trim()) return;
+        if (!collectionName?.trim()) return;
 
         try {
             setLoading(true);
             const response = await CollectionPost({ 
-                name: collectionName.trim(),
+                name: collectionName?.trim() || '',
                 is_live: false 
             });
             
@@ -127,7 +127,7 @@ const Collection = () => {
 
         const handleSubmit = (e) => {
             e.preventDefault();
-            if (name.trim()) {
+            if (name?.trim()) {
                 handleCreateCollection(name);
             }
         };
@@ -166,7 +166,7 @@ const Collection = () => {
                             <button
                                 type="submit"
                                 className="px-6 py-2 text-sm uppercase tracking-widest bg-black text-white hover:bg-gray-800 transition duration-150 rounded-sm"
-                                disabled={!name.trim()}
+                                disabled={!name?.trim()}
                             >
                                 Create
                             </button>
