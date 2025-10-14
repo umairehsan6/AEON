@@ -117,8 +117,15 @@ class CollectionSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
     def validate(self, attrs):
         name = attrs.get('name')
-        if Collection.objects.filter(name=name).exists():
-            raise serializers.ValidationError("Collection with this name already exists")
+        if name:
+            # Check if a collection with this name already exists (excluding current instance for updates)
+            existing_collections = Collection.objects.filter(name=name)
+            if self.instance:
+                # For updates, exclude the current instance
+                existing_collections = existing_collections.exclude(pk=self.instance.pk)
+            
+            if existing_collections.exists():
+                raise serializers.ValidationError("Collection with this name already exists")
         return attrs
 
 

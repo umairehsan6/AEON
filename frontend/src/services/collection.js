@@ -5,9 +5,19 @@ import API from "../api/axios";
 const COLLECTION_URL = "/api/inventory/collections/";
 // Helper function to set authorization header
 export const CollectionPost = async (collectionData) => {
-    checkAuth();
-    setAuthHeader();
-    return API.post(COLLECTION_URL, collectionData);
+    try {
+        checkAuth();
+        setAuthHeader();
+        console.log('Creating collection with data:', collectionData);
+        const response = await API.post(COLLECTION_URL, collectionData);
+        console.log('Collection created successfully:', response.data);
+        return response;
+    } catch (error) {
+        console.error('Collection creation error:', error);
+        console.error('Error response:', error.response?.data);
+        console.error('Error status:', error.response?.status);
+        throw error;
+    }
 };
 
 export const getCollections = async () => {
@@ -18,14 +28,23 @@ export const getCollections = async () => {
 export const updateCollection = async (collectionId, data) => {
     checkAuth();
     setAuthHeader();
-    return API.patch(`${COLLECTION_URL}${collectionId}/`, data);
+    return API.put(`${COLLECTION_URL}${collectionId}/`, data);
 };
 
 export const setCollectionProducts = async (collectionId, productIds) => {
-    checkAuth();
-    setAuthHeader();
-    // accepts array of product IDs
-    return API.post(`${COLLECTION_URL}${collectionId}/products/`, { products: productIds });
+    try {
+        checkAuth();
+        setAuthHeader();
+        console.log('Setting collection products:', { collectionId, productIds });
+        const response = await API.post(`${COLLECTION_URL}${collectionId}/products/`, { products: productIds });
+        console.log('Collection products set successfully:', response.data);
+        return response;
+    } catch (error) {
+        console.error('Set collection products error:', error);
+        console.error('Error response:', error.response?.data);
+        console.error('Error status:', error.response?.status);
+        throw error;
+    }
 };
 
 export const getCollectionProducts = async (collectionId) => {

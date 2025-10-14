@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { getCollections, updateCollection, setCollectionProducts, getCollectionProducts } from '../services/collection';
+import { getCollections, updateCollection, setCollectionProducts, getCollectionProducts, CollectionPost } from '../services/collection';
 import { getProducts } from '../services/inventory';
 import ProductAdminCard from '../components/ProductAdminCard';
 
@@ -11,6 +11,7 @@ const Collection = () => {
     const [collections, setCollections] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
+    const [error, setError] = useState(null);
     
     // 2. Navigation State: 'list' (default) or 'addProducts' (when navigating)
     const [view, setView] = useState('list');
@@ -57,20 +58,33 @@ const Collection = () => {
 
     // --- Handlers (Now local state manipulation) ---
 
-    // 1. CREATE COLLECTION (Local State Update)
-    const handleCreateCollection = (collectionName) => {
+    // 1. CREATE COLLECTION (API Call)
+    const handleCreateCollection = async (collectionName) => {
         if (!collectionName.trim()) return;
 
-        const newCollection = {
-            id: generateId(),
-            name: collectionName.trim(),
-            isLive: false,
-            createdAt: new Date(),
-        };
+        try {
+            setLoading(true);
+            const response = await CollectionPost({ 
+                name: collectionName.trim(),
+                is_live: false 
+            });
+            
+            const newCollection = {
+                id: response.data.id,
+                name: response.data.name,
+                isLive: response.data.is_live || false,
+                createdAt: new Date(response.data.created_at || Date.now()),
+            };
 
-        // Add new collection to the front of the list
-        setCollections(prev => [newCollection, ...prev]);
-        setModalOpen(false);
+            // Add new collection to the front of the list
+            setCollections(prev => [newCollection, ...prev]);
+            setModalOpen(false);
+        } catch (error) {
+            console.error('Failed to create collection:', error);
+            setError(error.response?.data?.message || error.message || 'Failed to create collection');
+        } finally {
+            setLoading(false);
+        }
     };
 
     // 2. TOGGLE LIVE STATUS (Call API with optimistic UI)
@@ -218,6 +232,19 @@ const Collection = () => {
                 </button>
             </div>
 
+            {/* Error Display */}
+            {error && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-red-800 text-sm">{error}</p>
+                    <button 
+                        onClick={() => setError(null)}
+                        className="mt-2 text-red-600 text-xs underline"
+                    >
+                        Dismiss
+                    </button>
+                </div>
+            )}
+
             {/* List Body */}
             <div className="mt-4">
                 {loading ? (
@@ -292,6 +319,7 @@ const Collection = () => {
                 setView('list');
             } catch (e) {
                 console.error('Failed to set collection products', e);
+                alert(`Failed to save products: ${e.response?.data?.message || e.message || 'Unknown error'}`);
             } finally {
                 setSaving(false);
             }

@@ -246,11 +246,18 @@ class CollectionListCreateAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def post(self, request, *args, **kwargs):
+        print(f"POST request for collection creation: {request.data}")
+        print(f"Request user: {request.user}")
+        print(f"User is authenticated: {request.user.is_authenticated}")
+        
         serializer = CollectionSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
+            print(f"Collection created successfully: {serializer.data}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            print(f"Collection creation validation failed: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class CollectionDetailAPIView(APIView):
     permission_classes = [IsAdminOrReadOnly]
@@ -294,6 +301,10 @@ class CollectionProductsListCreateAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, collection_id, *args, **kwargs):
+        print(f"POST request for collection {collection_id} products: {request.data}")
+        print(f"Request user: {request.user}")
+        print(f"User is authenticated: {request.user.is_authenticated}")
+        
         # Accepts list of product IDs or single mapping; avoid duplicates
         data = request.data
         created = []
@@ -322,6 +333,7 @@ class CollectionProductsListCreateAPIView(APIView):
         if collection.is_live:
             Product.objects.filter(id__in=[item['product'] for item in created]).update(is_live=True)
 
+        print(f"Collection products added successfully: {len(created)} products linked")
         return Response(created, status=status.HTTP_201_CREATED)
 
 
