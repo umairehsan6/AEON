@@ -261,11 +261,11 @@ const EditProductModal = ({ product, categories, onSave, onClose }) => {
 
         const updatedProduct = {
             ...product,
-            name: name.toUpperCase(),
+            name: name?.toUpperCase() || '',
             price: parseFloat(price),
             category: categoryKey,
             subcategory: subcategoryKey || '',
-            color: color.toUpperCase(),
+            color: color?.toUpperCase() || '',
             sizes: finalInventory,
             totalStock: totalStockAfterUpdate,
             isLive: isLive,
@@ -319,7 +319,7 @@ const EditProductModal = ({ product, categories, onSave, onClose }) => {
                         {/* Classification (Gender fixed, Category/Subcategory editable) */}
                         <div>
                             <label className="block text-sm font-medium mb-1">Department (Gender)</label>
-                            <input type="text" value={product.gender.toUpperCase()} disabled
+                            <input type="text" value={product.gender?.toUpperCase() || ''} disabled
                                 className="w-full p-3 border border-gray-300 bg-gray-100 rounded-md text-sm" />
                         </div>
                         
@@ -496,7 +496,7 @@ const CategoryManager = ({ categories, setCategories }) => {
       setLoading(true);
       setError(null);
       
-      const categoryData = { name: newCategoryName.toUpperCase() };
+      const categoryData = { name: newCategoryName?.toUpperCase() || '' };
       const response = await postCategories(categoryData);
       
       // Add the new category to local state
@@ -533,7 +533,7 @@ const CategoryManager = ({ categories, setCategories }) => {
       }
       
       const subcategoryData = {
-        name: newSubcategoryName.toUpperCase(),
+        name: newSubcategoryName?.toUpperCase() || '',
         category: parentCategory.id
       };
       
@@ -745,18 +745,18 @@ const ProductManager = ({ categories, setProducts, products }) => {
           .filter(item => item.quantity > 0);
       
       const productData = {
-          name: name.toUpperCase(),
+          name: name?.toUpperCase() || '',
           price: parseFloat(price),
           category: selectedCategory.id,
           subcategory: selectedSubcategory ? selectedSubcategory.id : null,
           gender: genderKey,
-          color: color.toUpperCase(),
+          color: color?.toUpperCase() || '',
           sizes: sizesToSave,
           total_stock_by_sizes: sizesToSave,
           is_live: isLive,
           image_url: imageUrl?.trim() ? [{
             id: "img_1",
-            url: imageUrl.trim(),
+            url: imageUrl?.trim() || '',
             alt: `${name} product image`,
             is_primary: true,
             order: 1
@@ -1103,7 +1103,7 @@ const ProductManager = ({ categories, setProducts, products }) => {
                 ))}
             </div>
             
-            {/* Conditional messaging */}
+            {/* Conditional messaging - Fixed isAccessory references */}
             {!genderKey && categoryKey !== 'accessories' && <p className='text-xs text-blue-500 mt-2'>Select a Gender/Department above to display relevant sizes.</p>}
             {totalStock === 0 && (genderKey || categoryKey === 'accessories') && <p className='text-xs text-red-500 mt-2'>Enter stock quantity for at least one size.</p>}
         </div>
