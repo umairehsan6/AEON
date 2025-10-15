@@ -682,29 +682,39 @@ class MasterProductFilterAPIView(APIView):
             products = products.filter(is_live=True)
             print(f"Products after live filter: {products.count()}")
         
-        # Filter by gender
-        if gender:
-            print(f"Filtering by gender: '{gender}'")
-            products = products.filter(gender__iexact=gender)
-            print(f"Products after gender filter: {products.count()}")
-        
-        # Filter by category (case-insensitive)
-        if category:
-            print(f"Filtering by category: '{category}'")
+        # Special logic: If only category is selected (no gender), show all products in that category
+        if category and not gender and not subcategory and not collection and not search:
+            print(f"Category-only filter: showing all products in category '{category}' regardless of gender")
             # Let's see what categories exist
             all_categories = Category.objects.all()
             print(f"Available categories: {[c.name for c in all_categories]}")
             products = products.filter(category__name__iexact=category)
-            print(f"Products after category filter: {products.count()}")
-        
-        # Filter by subcategory (case-insensitive)
-        if subcategory:
-            print(f"Filtering by subcategory: '{subcategory}'")
-            # Let's see what subcategories exist
-            all_subcategories = SubCategory.objects.all()
-            print(f"Available subcategories: {[s.name for s in all_subcategories]}")
-            products = products.filter(subcategory__name__iexact=subcategory)
-            print(f"Products after subcategory filter: {products.count()}")
+            print(f"Products after category-only filter: {products.count()}")
+        else:
+            # Apply filters in sequence for other cases
+            # Filter by gender
+            if gender:
+                print(f"Filtering by gender: '{gender}'")
+                products = products.filter(gender__iexact=gender)
+                print(f"Products after gender filter: {products.count()}")
+            
+            # Filter by category (case-insensitive)
+            if category:
+                print(f"Filtering by category: '{category}'")
+                # Let's see what categories exist
+                all_categories = Category.objects.all()
+                print(f"Available categories: {[c.name for c in all_categories]}")
+                products = products.filter(category__name__iexact=category)
+                print(f"Products after category filter: {products.count()}")
+            
+            # Filter by subcategory (case-insensitive)
+            if subcategory:
+                print(f"Filtering by subcategory: '{subcategory}'")
+                # Let's see what subcategories exist
+                all_subcategories = SubCategory.objects.all()
+                print(f"Available subcategories: {[s.name for s in all_subcategories]}")
+                products = products.filter(subcategory__name__iexact=subcategory)
+                print(f"Products after subcategory filter: {products.count()}")
         
         # Filter by collection
         if collection:

@@ -148,6 +148,14 @@ export default function Cart() {
                 if (mounted) setCartItems(normalized);
             } catch (e) {
                 console.error('Failed to load cart', e);
+                // Check if it's an authentication error
+                if (e.message && e.message.includes('No authentication token found')) {
+                    const currentUrl = window.location.pathname + window.location.search;
+                    navigate(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
+                } else if (e.response && e.response.status === 401) {
+                    const currentUrl = window.location.pathname + window.location.search;
+                    navigate(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
+                }
             }
         })();
         return () => { mounted = false; };
@@ -218,6 +226,16 @@ export default function Cart() {
             showMessage(`${itemToRemove ? itemToRemove.name : 'Item'} removed.`, "bg-red-100 text-red-700");
         } catch (e) {
             console.error('Failed to remove item', e);
+            // Check if it's an authentication error
+            if (e.message && e.message.includes('No authentication token found')) {
+                const currentUrl = window.location.pathname + window.location.search;
+                navigate(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
+            } else if (e.response && e.response.status === 401) {
+                const currentUrl = window.location.pathname + window.location.search;
+                navigate(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
+            } else {
+                showMessage('Failed to remove item. Please try again.', 'bg-red-100 text-red-700');
+            }
         }
     }, [cartItems]);
 
@@ -244,6 +262,19 @@ export default function Cart() {
             });
         } catch (e) {
             console.error('Failed to update item quantity', e);
+            // Check if it's an authentication error
+            if (e.message && e.message.includes('No authentication token found')) {
+                const currentUrl = window.location.pathname + window.location.search;
+                navigate(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
+            } else if (e.response && e.response.status === 401) {
+                const currentUrl = window.location.pathname + window.location.search;
+                navigate(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
+            } else if (e.response && e.response.data && e.response.data.error) {
+                // Check if it's a stock error
+                showMessage(e.response.data.error, 'bg-red-100 text-red-700');
+            } else {
+                showMessage('Failed to update quantity. Please try again.', 'bg-red-100 text-red-700');
+            }
         }
     }, [removeItem]);
 

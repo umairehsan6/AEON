@@ -27,10 +27,14 @@ export const getAllOrders = async () => {
   return API.get(`${ORDERS_URL}admin-list/`);
 };
 
-export const updateOrderStatus = async (orderId, status) => {
+export const updateOrderStatus = async (orderId, statusData) => {
   checkAuth();
   setAuthHeader();
-  return API.patch(`${ORDERS_URL}${orderId}/status/`, { status });
+  // Handle both string status and object with status/return_reason
+  const payload = typeof statusData === 'string' 
+    ? { status: statusData }
+    : statusData;
+  return API.patch(`${ORDERS_URL}${orderId}/status/`, payload);
 };
 
 export const cancelOrder = async (orderId, reason) => {
@@ -40,4 +44,21 @@ export const cancelOrder = async (orderId, reason) => {
     status: 'cancelled',
     return_reason: reason 
   });
+};
+
+export const getSalesStatistics = async (filters = {}) => {
+  checkAuth();
+  setAuthHeader();
+  
+  // Build query parameters
+  const params = new URLSearchParams();
+  
+  if (filters.period) params.append('period', filters.period);
+  if (filters.month) params.append('month', filters.month);
+  if (filters.year) params.append('year', filters.year);
+  
+  const queryString = params.toString();
+  const url = queryString ? `${ORDERS_URL}sales-statistics/?${queryString}` : `${ORDERS_URL}sales-statistics/`;
+  
+  return API.get(url);
 };

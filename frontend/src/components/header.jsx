@@ -3,7 +3,7 @@ import { useCart } from '../context/CartContext';
 import { getUserInfo, getUserRole } from '../services/authutils';
 import { logout } from '../services/auth';
 import { getCategoriesByGender, getFilteredProducts } from '../services/inventory';
-import { getCollections } from '../services/collection';
+import { ShoppingBag, User, LogIn } from 'lucide-react';
 // NOTE: NavLink import removed to prevent console errors if component is not
 // rendered inside a <BrowserRouter> or other Router component.
 // All instances replaced with <a> tags.
@@ -20,7 +20,6 @@ function Header() {
   
   // State for dynamic data
   const [categoriesData, setCategoriesData] = useState(null);
-  const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Get user authentication info
@@ -60,13 +59,8 @@ function Header() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [categoriesResponse, collectionsResponse] = await Promise.all([
-          getCategoriesByGender(),
-          getCollections()
-        ]);
-        
+        const categoriesResponse = await getCategoriesByGender();
         setCategoriesData(categoriesResponse);
-        setCollections(collectionsResponse.data.filter(collection => collection.is_live));
       } catch (error) {
         console.error('Error fetching sidebar data:', error);
       } finally {
@@ -171,30 +165,39 @@ function Header() {
         </div>
 
         {/* RIGHT SIDE: Actions (Login/Profile & Cart) */}
-        <div className="flex items-center space-x-6 md:space-x-8">
+        <div className="flex items-center space-x-4 md:space-x-6">
           
+          {/* Profile/Login Icon */}
           {isAuthenticated ? (
             <a 
               href="/profile" 
-              className="font-light text-sm tracking-wide uppercase hover:underline hover:text-gray-700 transition-all duration-200"
+              className="relative p-2 text-gray-700 hover:text-gray-900 transition-colors duration-200"
+              title="Profile"
             >
-              {userInfo?.first_name ? userInfo.first_name.toUpperCase() : 'PROFILE'}
+              <User className="w-6 h-6" />
             </a>
           ) : (
             <a 
               href="/login" 
-              className="font-light text-sm tracking-wide uppercase hover:underline hover:text-gray-700 transition-all duration-200"
+              className="relative p-2 text-gray-700 hover:text-gray-900 transition-colors duration-200"
+              title="Login"
             >
-              LOGIN
+              <LogIn className="w-6 h-6" />
             </a>
           )}
           
-          {/* Cart Icon - Using text as requested */}
+          {/* Cart Icon */}
           <a 
             href="/cart" 
-            className="font-light text-sm tracking-wide uppercase hover:underline hover:text-gray-700 transition-all duration-200"
+            className="relative p-2 text-gray-700 hover:text-gray-900 transition-colors duration-200"
+            title="Shopping Cart"
           >
-            CART{count > 0 ? ` (${count})` : ''}
+            <ShoppingBag className="w-6 h-6" />
+            {count > 0 && (
+              <span className="absolute -top-1 -right-1 bg-black text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                {count > 99 ? '99+' : count}
+              </span>
+            )}
           </a>
         </div>
       </header>
@@ -343,48 +346,13 @@ function Header() {
           {/* User Account Links - Only show if authenticated */}
           {isAuthenticated && (
             <div className="mt-16 pt-6 border-t border-gray-100 space-y-2">
-              <a href="/profile" onClick={toggleSidebar} className="block text-sm font-light uppercase tracking-wider text-gray-500 hover:text-black transition-colors duration-200 py-1">
-                  PROFILE
-              </a>
-              <a href="/orders" onClick={toggleSidebar} className="block text-sm font-light uppercase tracking-wider text-gray-500 hover:text-black transition-colors duration-200 py-1">
-                  MY ORDERS
-              </a>
               <button onClick={handleLogout} className="block text-sm font-light uppercase tracking-wider text-gray-500 hover:text-black transition-colors duration-200 py-1 w-full text-left">
                   LOGOUT
               </button>
             </div>
           )}
 
-          {/* Footer links for help/stores */}
-          {/* Collections Section */}
-          {collections.length > 0 && (
-            <div className="mt-8">
-              <h3 className="text-lg font-normal uppercase tracking-wider text-gray-800 mb-4">
-                COLLECTIONS
-              </h3>
-              <div className="space-y-2">
-                {collections.map((collection) => (
-                  <a
-                    key={collection.id}
-                    href={`/collection/${collection.name.toLowerCase().replace(/\s+/g, '-')}`}
-                    onClick={toggleSidebar}
-                    className="block text-sm font-light uppercase tracking-wider text-gray-500 hover:text-black transition-colors duration-200 py-1"
-                  >
-                    {collection.name}
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
 
-          <div className="mt-8 pt-6 border-t border-gray-100 space-y-2">
-            <a href="/help" onClick={toggleSidebar} className="block text-sm font-light uppercase tracking-wider text-gray-500 hover:text-black transition-colors duration-200 py-1">
-                HELP
-            </a>
-            <a href="/stores" onClick={toggleSidebar} className="block text-sm font-light uppercase tracking-wider text-gray-500 hover:text-black transition-colors duration-200 py-1">
-                STORES
-            </a>
-          </div>
 
         </div>
       </div>

@@ -7,6 +7,7 @@ const LoginPage = () => {
   const [credentials, setCredentials] = useState({ username: '', password: '' });
   const [error, setError] = useState(null);
   const [infoMessage, setInfoMessage] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -26,6 +27,7 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setIsLoading(true);
     console.log('Attempting login with credentials:', credentials);
     try {
       const res = await login(credentials);
@@ -33,17 +35,27 @@ const LoginPage = () => {
       
       // Small delay to ensure tokens are stored
       setTimeout(() => {
-        // Redirect based on user role after successful login
-        const role = getUserRole();
-        console.log('User role:', role);
-        if (role === "admin") {
-          navigate("/admin");
-        } else if (role === "user") {
-          navigate("/profile");
+        // Check if there's a return URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const returnTo = urlParams.get('returnTo');
+        
+        if (returnTo) {
+          // Redirect back to the original page
+          console.log('Redirecting back to:', returnTo);
+          navigate(returnTo);
         } else {
-          // Fallback to home page if role is not determined
-          console.log('No role found, redirecting to home');
-          navigate("/");
+          // Redirect based on user role after successful login
+          const role = getUserRole();
+          console.log('User role:', role);
+          if (role === "admin") {
+            navigate("/admin");
+          } else if (role === "user") {
+            navigate("/profile");
+          } else {
+            // Fallback to home page if role is not determined
+            console.log('No role found, redirecting to home');
+            navigate("/");
+          }
         }
       }, 100);
       
@@ -61,6 +73,8 @@ const LoginPage = () => {
       } else {
         setError('Login failed. Please check your credentials and try again.');
       }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -81,7 +95,12 @@ const LoginPage = () => {
               placeholder="username"
               value={credentials.username}
               onChange={handleChange}
-              className="w-full px-4 py-3 bg-white border border-neutral-300 rounded-xl focus:outline-none focus:border-neutral-500 transition-colors duration-200"
+              disabled={isLoading}
+              className={`w-full px-4 py-3 border rounded-xl focus:outline-none transition-colors duration-200 ${
+                isLoading 
+                  ? 'bg-gray-100 border-gray-200 cursor-not-allowed' 
+                  : 'bg-white border-neutral-300 focus:border-neutral-500'
+              }`}
             />
           </div>
           <div className="mb-4">
@@ -91,14 +110,24 @@ const LoginPage = () => {
               placeholder="Password"
               value={credentials.password}
               onChange={handleChange}
-              className="w-full px-4 py-3 bg-white border border-neutral-300 rounded-xl focus:outline-none focus:border-neutral-500 transition-colors duration-200"
+              disabled={isLoading}
+              className={`w-full px-4 py-3 border rounded-xl focus:outline-none transition-colors duration-200 ${
+                isLoading 
+                  ? 'bg-gray-100 border-gray-200 cursor-not-allowed' 
+                  : 'bg-white border-neutral-300 focus:border-neutral-500'
+              }`}
             />
           </div>
           <button
             type="submit"
-            className="w-full rounded-xl border border-neutral-900 bg-neutral-900 text-white py-3 px-8 text-sm uppercase transition-colors duration-200 hover:bg-neutral-800"
+            disabled={isLoading}
+            className={`w-full rounded-xl border border-neutral-900 py-3 px-8 text-sm uppercase transition-colors duration-200 ${
+              isLoading 
+                ? 'bg-neutral-500 cursor-not-allowed' 
+                : 'bg-neutral-900 hover:bg-neutral-800'
+            } text-white`}
           >
-            Log In
+            {isLoading ? 'Signing In...' : 'Log In'}
           </button>
         </form>
         {infoMessage && <p style={{ color: 'green' }}>{infoMessage}</p>}

@@ -2,11 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { addToCart } from '../services/cart';
 import { useCart } from '../context/CartContext';
+import { useProductRefresh } from '../context/ProductContext';
 import { getUserRole } from '../services/authutils';
 
 const ProductUserCard = ({ product }) => {
     const navigate = useNavigate();
-    const [selectedSize, setSelectedSize] = useState(product.sizes_available?.[0] || 'ONE');
+    const [selectedSize, setSelectedSize] = useState('');
     const imageSize = 400;
     const bgColor = (product.color || '').toUpperCase().includes('BLACK') ? '000' : 'EBEBEB';
     const textColor = (product.color || '').toUpperCase().includes('BLACK') ? 'FFF' : '000';
@@ -31,6 +32,7 @@ const ProductUserCard = ({ product }) => {
     const displayImageUrl = getDisplayImage();
 
     const { refreshCount, addCount } = useCart();
+    const { refreshTrigger } = useProductRefresh();
     const [added, setAdded] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [sizeInventory, setSizeInventory] = useState({});
@@ -41,28 +43,32 @@ const ProductUserCard = ({ product }) => {
         setIsAdmin(userRole === 'admin');
     }, []);
 
-    // Process inventory data from product
+    // Process inventory data from product - same logic as Productpage.jsx
     React.useEffect(() => {
         if (product) {
+            let sizesArray = ['ONE SIZE'];
             let inventoryMap = {};
             const sizes = product.sizes || product.total_stock_by_sizes;
-            
             
             if (Array.isArray(sizes)) {
                 if (sizes.length > 0 && typeof sizes[0] === 'object') {
                     // Array of objects like [{size: 'S', quantity: 10}]
+                    sizesArray = sizes.map(s => String(s.size || s.label || 'ONE'));
                     inventoryMap = sizes.reduce((acc, item) => {
                         acc[String(item.size || item.label || 'ONE')] = parseInt(item.quantity || 0);
                         return acc;
                     }, {});
                 } else {
-                    // Array of strings - assume all available
-                    sizes.forEach(size => {
-                        inventoryMap[size] = 999;
+                    // Array of strings
+                    sizesArray = sizes.map(s => String(s));
+                    // If no quantity info, assume all sizes are available
+                    sizesArray.forEach(size => {
+                        inventoryMap[size] = 999; // Default high number for sizes without quantity
                     });
                 }
             } else if (sizes && typeof sizes === 'object') {
                 // Object map like {S: 10, M: 5}
+                sizesArray = Object.keys(sizes);
                 Object.entries(sizes).forEach(([size, quantity]) => {
                     inventoryMap[size] = parseInt(quantity || 0);
                 });
@@ -70,11 +76,19 @@ const ProductUserCard = ({ product }) => {
             
             console.log('Processed inventory for product:', product.name, {
                 originalSizes: sizes,
-                processedInventoryMap: inventoryMap
+                sizesArray: sizesArray,
+                processedInventoryMap: inventoryMap,
+                refreshTrigger
             });
             setSizeInventory(inventoryMap);
+            
+            // Set default size to first in-stock size
+            if (sizesArray.length > 0) {
+                const inStockSize = sizesArray.find(size => inventoryMap[size] > 0);
+                setSelectedSize(inStockSize || '');
+            }
         }
-    }, [product]);
+    }, [product, refreshTrigger]);
 
     const handleImageClick = () => {
         navigate(`/product/${product.id}`);
@@ -96,18 +110,6 @@ const ProductUserCard = ({ product }) => {
         return isAvailable;
     };
 
-    // Set default size to first available size for all users
-    React.useEffect(() => {
-        if (product.sizes_available && product.sizes_available.length > 0 && Object.keys(sizeInventory).length > 0) {
-            const firstAvailableSize = product.sizes_available.find(size => isSizeAvailable(size));
-            if (firstAvailableSize && firstAvailableSize !== selectedSize) {
-                setSelectedSize(firstAvailableSize);
-            } else if (!firstAvailableSize) {
-                // If no sizes are available, don't select any
-                setSelectedSize('');
-            }
-        }
-    }, [product.sizes_available, sizeInventory]);
 
     const handleAdd = async () => {
         // STRICT CHECK: Prevent adding out-of-stock items at all costs (for all users)
@@ -123,6 +125,21 @@ const ProductUserCard = ({ product }) => {
             setTimeout(() => setAdded(false), 800);
         } catch (e) {
             console.error('Failed to add to cart', e);
+            // Check if it's an authentication error
+            if (e.message && e.message.includes('No authentication token found')) {
+                // Redirect to login with current page as return URL
+                const currentUrl = window.location.pathname + window.location.search;
+                navigate(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
+                return;
+            }
+            
+            // Check if it's a 401 Unauthorized error
+            if (e.response && e.response.status === 401) {
+                // Redirect to login with current page as return URL
+                const currentUrl = window.location.pathname + window.location.search;
+                navigate(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
+                return;
+            }
         }
     };
 
@@ -145,7 +162,7 @@ const ProductUserCard = ({ product }) => {
                 <p className="text-sm uppercase font-normal tracking-wide">{product.name}</p>
                 <p className="text-sm font-bold mt-0.5 mb-2">${Number(product.price).toFixed(2)}</p>
 
-                {Array.isArray(product.sizes_available) && product.sizes_available.length > 0 && (
+                {Object.keys(sizeInventory).length > 0 && (
                     <div className="mb-3">
                         <select 
                             value={selectedSize}
@@ -158,7 +175,7 @@ const ProductUserCard = ({ product }) => {
                                 backgroundSize: '0.8em',
                             }}
                         >
-                            {product.sizes_available.map(size => {
+                            {Object.keys(sizeInventory).map(size => {
                                 const isAvailable = isSizeAvailable(size);
                                 return (
                                     <option 

@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import CheckoutCreateView, MyOrdersView, AdminOrdersView, OrderStatusUpdateView, UserCheckoutDataView, TestStockUpdateView
+from .views import CheckoutCreateView, MyOrdersView, AdminOrdersView, OrderStatusUpdateView, UserCheckoutDataView, TestStockUpdateView, SalesStatisticsAPIView
 
 urlpatterns = [
     path('checkout/', CheckoutCreateView.as_view(), name='orders-checkout'),
@@ -8,5 +8,6 @@ urlpatterns = [
     path('admin-list/', AdminOrdersView.as_view(), name='orders-admin-list'),
     path('<int:order_id>/status/', OrderStatusUpdateView.as_view(), name='orders-status-update'),
     path('test-stock/', TestStockUpdateView.as_view(), name='test-stock-update'),
+    path('sales-statistics/', SalesStatisticsAPIView.as_view(), name='sales-statistics'),
 ]
 

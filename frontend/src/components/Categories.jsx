@@ -40,7 +40,7 @@ const Categories = () => {
             const name = category.name || 'Category';
             const imageUrl = `https://placehold.co/600x800/EEE/333?text=${encodeURIComponent(name)}`;
             // Link target can be configured later; using /products with query param placeholder
-            const to = { pathname: '/products', search: `?category=${id}` };
+            const to = { pathname: '/products', search: `?category=${name}` };
             return (
               <NavLink key={id || name} to={to} className="relative group overflow-hidden cursor-pointer">
                 <img

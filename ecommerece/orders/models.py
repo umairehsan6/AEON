@@ -20,6 +20,9 @@ class Order(models.Model):
     is_office_address = models.BooleanField(default=False)
     return_reason = models.TextField(blank=True, null=True)
     ip_address = models.GenericIPAddressField(blank=True, null=True)
+    shipping_charges = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

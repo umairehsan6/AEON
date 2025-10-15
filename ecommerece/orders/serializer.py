@@ -24,14 +24,15 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = [
             'id', 'user', 'status', 'first_name', 'last_name', 'email', 'phone', 'first_address', 'second_address', 'is_office_address', 'return_reason', 'ip_address',
-            'items', 'created_at', 'updated_at'
+            'shipping_charges', 'subtotal', 'total_amount', 'items', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'user', 'status', 'ip_address', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'status', 'ip_address', 'shipping_charges', 'subtotal', 'total_amount', 'created_at', 'updated_at']
 
 
 class CheckoutSerializer(serializers.Serializer):
     first_address = serializers.CharField(max_length=255)
     second_address = serializers.CharField(max_length=255, required=False, allow_blank=True)
     is_office_address = serializers.BooleanField(default=False)
+    phone = serializers.CharField(max_length=15, required=False, allow_blank=True)
     item_ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=True, required=False)
 

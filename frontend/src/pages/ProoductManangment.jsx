@@ -20,73 +20,11 @@ const JEANS_SIZES = ['28', '30', '32', '34', '36', '38', '40', '42', '44', '46']
 const CAP_SIZES = ['S/M', 'L/XL', 'ONE SIZE']; // Cap sizes
 const ONE_SIZE = ['ONE SIZE']; // For accessories and one-size items
 const GENDER_OPTIONS = [
-    { name: 'WOMAN', key: 'woman' },
-    { name: 'MAN', key: 'man' },
+    { name: 'WOMEN', key: 'women' },
+    { name: 'MEN', key: 'men' },
     { name: 'KIDS', key: 'kids' },
 ];
 
-const INITIAL_PRODUCT_CATEGORIES = [
-  {
-    name: 'TOPS',
-    key: 'tops',
-    subcategories: [
-      { name: 'T-SHIRTS', key: 't-shirts' },
-      { name: 'SHIRTS', key: 'shirts' },
-      { name: 'SWEATERS', key: 'sweaters' },
-      { name: 'HOODIES', key: 'hoodies' },
-      { name: 'JACKETS', key: 'jackets' },
-    ],
-  },
-  {
-    name: 'BOTTOMS',
-    key: 'bottoms',
-    subcategories: [
-      { name: 'JEANS', key: 'jeans' },
-      { name: 'TROUSERS', key: 'trousers' },
-      { name: 'SHORTS', key: 'shorts' },
-      { name: 'SKIRTS', key: 'skirts' },
-    ],
-  },
-  {
-    name: 'SHOES',
-    key: 'shoes',
-    subcategories: [
-      { name: 'SNEAKERS', key: 'sneakers' },
-      { name: 'BOOTS', key: 'boots' },
-      { name: 'SANDALS', key: 'sandals' },
-      { name: 'HEELS', key: 'heels' },
-      { name: 'FLATS', key: 'flats' },
-    ],
-  },
-  {
-    name: 'HEADWEAR',
-    key: 'headwear',
-    subcategories: [
-      { name: 'CAPS', key: 'caps' },
-      { name: 'HATS', key: 'hats' },
-      { name: 'BEANIES', key: 'beanies' },
-    ],
-  },
-  {
-    name: 'ACCESSORIES',
-    key: 'accessories',
-    subcategories: [
-      { name: 'BAGS', key: 'bags' },
-      { name: 'JEWELRY', key: 'jewelry' },
-      { name: 'BELTS', key: 'belts' },
-      { name: 'WATCHES', key: 'watches' },
-      { name: 'SUNGLASSES', key: 'sunglasses' },
-    ],
-  },
-];
-
-// Updated Mock Data to reflect new structure
-const INITIAL_PRODUCTS = [
-  { id: 1, name: 'SLIM FIT JEANS', price: 49.90, category: 'bottoms', subcategory: 'jeans', gender: 'man', color: 'DARK BLUE', sizes: [{ size: 'M', quantity: 15 }, { size: 'L', quantity: 10 }], totalStock: 25, isLive: true, imageUrl: 'jeans', description: 'Classic slim fit denim jeans in a dark wash.' },
-  { id: 2, name: 'OVERSIZE T-SHIRT', price: 19.90, category: 'tops', subcategory: 't-shirts', gender: 'woman', color: 'WHITE', sizes: [{ size: 'XS', quantity: 5 }, { size: 'S', quantity: 10 }, { size: 'M', quantity: 15 }], totalStock: 30, isLive: true, imageUrl: 'tshirt', description: 'Soft cotton oversized t-shirt.' },
-  { id: 3, name: 'MINI BACKPACK', price: 35.00, category: 'accessories', subcategory: 'bags', gender: 'kids', color: 'PINK', sizes: [{ size: 'N/A', quantity: 50 }], totalStock: 50, isLive: false, imageUrl: 'backpack', description: 'Small pink backpack for children aged 6-7.' },
-  { id: 4, name: 'BROWN LEATHER BAG', price: 99.00, category: 'accessories', subcategory: 'bags', gender: 'woman', color: 'BROWN', sizes: [{ size: 'N/A', quantity: 20 }], totalStock: 20, isLive: true, imageUrl: 'bag', description: 'Premium leather handbag.' },
-];
 
 // Utility function
 const toKey = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -567,7 +505,7 @@ const CategoryManager = ({ categories, setCategories }) => {
   return (
     <div className="p-6 md:p-8 bg-white rounded-lg shadow-xl border border-gray-100 max-w-4xl mx-auto">
       <h3 className="text-2xl font-bold mb-6 tracking-wider uppercase border-b pb-3 text-center">Category Management</h3>
-      <p className="text-sm text-gray-600 mb-6 text-center">Manage high-level product categories (e.g., TOPS) and their product types (e.g., HOODIES). Gender (MAN/WOMAN/KIDS) is fixed.</p>
+      <p className="text-sm text-gray-600 mb-6 text-center">Manage high-level product categories (e.g., TOPS) and their product types (e.g., HOODIES). Gender (MEN/WOMEN/KIDS) is fixed.</p>
       
       {/* Error Display */}
       {error && (
@@ -670,7 +608,7 @@ const ProductManager = ({ categories, setProducts, products }) => {
   const [price, setPrice] = useState('');
   const [categoryKey, setCategoryKey] = useState(''); // TOPS/BOTTOMS/ACCESSORIES
   const [subcategoryKey, setSubcategoryKey] = useState(''); // T-SHIRTS/JEANS/etc.
-  const [genderKey, setGenderKey] = useState(''); // WOMAN/MAN/KIDS (New field)
+  const [genderKey, setGenderKey] = useState(''); // WOMEN/MEN/KIDS (New field)
   const [color, setColor] = useState('');
   const [isLive, setIsLive] = useState(false); // New field for product visibility
   
@@ -1341,8 +1279,8 @@ const App = () => {
           setProducts(productsResponse.data || []);
         } catch (productError) {
           console.warn('Could not fetch products:', productError);
-          // Keep using initial products as fallback
-          setProducts(INITIAL_PRODUCTS);
+          // Set empty array as fallback
+          setProducts([]);
         }
         
       } catch (err) {
@@ -1361,9 +1299,9 @@ const App = () => {
           setError(err.message || 'Failed to load data');
         }
         
-        // Fallback to initial data
-        setCategories(INITIAL_PRODUCT_CATEGORIES);
-        setProducts(INITIAL_PRODUCTS);
+        // Fallback to empty arrays
+        setCategories([]);
+        setProducts([]);
       } finally {
         setLoading(false);
       }

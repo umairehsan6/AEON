@@ -4,6 +4,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from django.db import transaction
+from django.db.models import Sum, Count, Q
+from django.utils import timezone
+from datetime import datetime, timedelta
 from .models import Order, OrderItem
 from .serializer import OrderSerializer, CheckoutSerializer
 from cart.models import Cart, CartItem
@@ -41,6 +45,24 @@ class CheckoutCreateView(APIView):
             print("No items to checkout!")
             return Response({'detail': 'No items to checkout'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Calculate subtotal from cart items
+        subtotal = sum(float(item.price_at_add) * item.quantity for item in items_qs)
+        
+        # Calculate shipping charges (you can customize this logic)
+        # For now, using a simple flat rate of $5.99
+        shipping_charges = 5.99
+        
+        # Calculate total amount
+        total_amount = subtotal + shipping_charges
+        
+        print(f"Order calculation: Subtotal=${subtotal:.2f}, Shipping=${shipping_charges:.2f}, Total=${total_amount:.2f}")
+        
+        # Update user's phone number if provided
+        if data.get('phone'):
+            request.user.phone = data['phone']
+            request.user.save(update_fields=['phone'])
+            print(f"Updated user phone number to: {data['phone']}")
+
         # Create order
         order = Order.objects.create(
             user=request.user,
@@ -48,6 +70,9 @@ class CheckoutCreateView(APIView):
             second_address=data.get('second_address'),
             is_office_address=data.get('is_office_address', False),
             ip_address=request.META.get('REMOTE_ADDR'),
+            subtotal=subtotal,
+            shipping_charges=shipping_charges,
+            total_amount=total_amount,
         )
 
         # Move items to order + decrement stock
@@ -328,5 +353,132 @@ class TestStockUpdateView(APIView):
                 
         except Product.DoesNotExist:
             return Response({'error': 'Product not found'}, status=404)
-        except Exception as e:
-            return Response({'error': str(e)}, status=500)
+
+
+class SalesStatisticsAPIView(APIView):
+    """API for sales statistics with month filtering"""
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, *args, **kwargs):
+        # Get filter parameters
+        month = request.GET.get('month')  # Format: YYYY-MM
+        year = request.GET.get('year')    # Format: YYYY
+        period = request.GET.get('period', 'current')  # current, last, custom
+        
+        # Calculate date ranges
+        now = timezone.now()
+        
+        if period == 'current':
+            # Current month
+            start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now
+        elif period == 'last':
+            # Last month
+            if now.month == 1:
+                start_date = now.replace(year=now.year-1, month=12, day=1, hour=0, minute=0, second=0, microsecond=0)
+            else:
+                start_date = now.replace(month=now.month-1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = start_date.replace(month=start_date.month+1) - timedelta(days=1)
+        elif period == 'custom' and month and year:
+            # Custom month/year
+            try:
+                start_date = datetime(int(year), int(month), 1, tzinfo=timezone.utc)
+                if int(month) == 12:
+                    end_date = datetime(int(year)+1, 1, 1, tzinfo=timezone.utc) - timedelta(days=1)
+                else:
+                    end_date = datetime(int(year), int(month)+1, 1, tzinfo=timezone.utc) - timedelta(days=1)
+            except ValueError:
+                return Response({'error': 'Invalid month/year format'}, status=400)
+        else:
+            # Default to current month
+            start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now
+        
+        # Filter orders by date range
+        orders = Order.objects.filter(
+            created_at__gte=start_date,
+            created_at__lte=end_date
+        )
+        
+        # Calculate statistics
+        total_orders = orders.count()
+        total_revenue = orders.aggregate(total=Sum('total_amount'))['total'] or 0
+        total_shipping = orders.aggregate(total=Sum('shipping_charges'))['total'] or 0
+        total_subtotal = orders.aggregate(total=Sum('subtotal'))['total'] or 0
+        
+        # Order status breakdown
+        status_breakdown = orders.values('status').annotate(count=Count('id')).order_by('status')
+        
+        # Daily sales for the period
+        daily_sales = orders.extra(
+            select={'day': 'date(created_at)'}
+        ).values('day').annotate(
+            daily_revenue=Sum('total_amount'),
+            daily_orders=Count('id')
+        ).order_by('day')
+        
+        # Top selling products (by quantity)
+        top_products = OrderItem.objects.filter(
+            order__created_at__gte=start_date,
+            order__created_at__lte=end_date
+        ).values(
+            'product__name', 'product__id'
+        ).annotate(
+            total_quantity=Sum('quantity'),
+            total_revenue=Sum('price_at_purchase')
+        ).order_by('-total_quantity')[:10]
+        
+        # Average order value
+        avg_order_value = total_revenue / total_orders if total_orders > 0 else 0
+        
+        # Previous period comparison (for growth calculation)
+        if period == 'current':
+            # Compare with last month
+            prev_start = start_date.replace(month=start_date.month-1) if start_date.month > 1 else start_date.replace(year=start_date.year-1, month=12)
+            prev_end = start_date - timedelta(days=1)
+        elif period == 'last':
+            # Compare with month before last month
+            if start_date.month <= 2:
+                prev_start = start_date.replace(year=start_date.year-1, month=start_date.month+10)
+            else:
+                prev_start = start_date.replace(month=start_date.month-2)
+            prev_end = start_date - timedelta(days=1)
+        else:
+            # For custom periods, compare with previous month
+            prev_start = start_date - timedelta(days=30)
+            prev_end = start_date - timedelta(days=1)
+        
+        prev_orders = Order.objects.filter(
+            created_at__gte=prev_start,
+            created_at__lte=prev_end
+        )
+        prev_revenue = prev_orders.aggregate(total=Sum('total_amount'))['total'] or 0
+        prev_count = prev_orders.count()
+        
+        # Calculate growth percentages
+        revenue_growth = ((total_revenue - prev_revenue) / prev_revenue * 100) if prev_revenue > 0 else 0
+        orders_growth = ((total_orders - prev_count) / prev_count * 100) if prev_count > 0 else 0
+        
+        return Response({
+            'period': {
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat(),
+                'period_type': period
+            },
+            'summary': {
+                'total_orders': total_orders,
+                'total_revenue': float(total_revenue),
+                'total_shipping': float(total_shipping),
+                'total_subtotal': float(total_subtotal),
+                'average_order_value': float(avg_order_value),
+                'revenue_growth': round(revenue_growth, 2),
+                'orders_growth': round(orders_growth, 2)
+            },
+            'status_breakdown': list(status_breakdown),
+            'daily_sales': list(daily_sales),
+            'top_products': list(top_products),
+            'comparison': {
+                'previous_period_revenue': float(prev_revenue),
+                'previous_period_orders': prev_count
+            }
+        }, status=status.HTTP_200_OK)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAllOrders } from '../services/orders';
+import { getAllOrders, getSalesStatistics } from '../services/orders';
 import { getProducts } from '../services/inventory';
 import { getCollections } from '../services/collection';
 
@@ -13,7 +13,59 @@ const DashboardPage = () => {
         returnedOrders: 0,
         recentOrders: []
     });
+    const [salesStats, setSalesStats] = useState({
+        total_revenue: 0,
+        total_orders: 0,
+        total_shipping: 0,
+        total_subtotal: 0,
+        average_order_value: 0,
+        revenue_growth: 0,
+        orders_growth: 0,
+        status_breakdown: [],
+        daily_sales: [],
+        top_products: []
+    });
     const [loading, setLoading] = useState(true);
+    const [salesLoading, setSalesLoading] = useState(true);
+    const [selectedPeriod, setSelectedPeriod] = useState('current');
+
+    const loadSalesStatistics = async (period = 'current') => {
+        try {
+            setSalesLoading(true);
+            const response = await getSalesStatistics({ period });
+            // Ensure we have the expected data structure
+            const data = response.data || {};
+            setSalesStats({
+                total_revenue: data.summary?.total_revenue || 0,
+                total_orders: data.summary?.total_orders || 0,
+                total_shipping: data.summary?.total_shipping || 0,
+                total_subtotal: data.summary?.total_subtotal || 0,
+                average_order_value: data.summary?.average_order_value || 0,
+                revenue_growth: data.summary?.revenue_growth || 0,
+                orders_growth: data.summary?.orders_growth || 0,
+                status_breakdown: data.status_breakdown || [],
+                daily_sales: data.daily_sales || [],
+                top_products: data.top_products || []
+            });
+        } catch (error) {
+            console.error('Failed to load sales statistics:', error);
+            // Set default values on error
+            setSalesStats({
+                total_revenue: 0,
+                total_orders: 0,
+                total_shipping: 0,
+                total_subtotal: 0,
+                average_order_value: 0,
+                revenue_growth: 0,
+                orders_growth: 0,
+                status_breakdown: [],
+                daily_sales: [],
+                top_products: []
+            });
+        } finally {
+            setSalesLoading(false);
+        }
+    };
 
     useEffect(() => {
         const loadDashboardData = async () => {
@@ -50,7 +102,8 @@ const DashboardPage = () => {
         };
 
         loadDashboardData();
-    }, []);
+        loadSalesStatistics(selectedPeriod);
+    }, [selectedPeriod]);
 
     const getStatusColor = (status) => {
         const colors = {
@@ -77,9 +130,59 @@ const DashboardPage = () => {
     return (
         <div className="min-h-screen bg-gray-100 text-neutral-900 font-sans">
             <div className="max-w-7xl mx-auto px-4 md:px-8 py-10">
-                <h1 className="text-4xl font-bold uppercase tracking-wider mb-10">Admin Dashboard</h1>
+                <div className="flex justify-between items-center mb-10">
+                    <h1 className="text-4xl font-bold uppercase tracking-wider">Admin Dashboard</h1>
+                    
+                    {/* Period Filter */}
+                    <div className="flex items-center gap-4">
+                        <label className="text-sm font-medium uppercase tracking-wide text-gray-600">Period:</label>
+                        <select
+                            value={selectedPeriod}
+                            onChange={(e) => setSelectedPeriod(e.target.value)}
+                            className="border border-gray-300 px-3 py-2 text-sm rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="current">This Month</option>
+                            <option value="last">Last Month</option>
+                        </select>
+                    </div>
+                </div>
 
-                {/* Stats Grid */}
+                {/* Sales Statistics */}
+                <div className="mb-10">
+                    <h2 className="text-2xl font-bold uppercase tracking-wider mb-6">Sales Statistics</h2>
+                    {salesLoading ? (
+                        <div className="text-center py-8">
+                            <p className="text-gray-600">Loading sales data...</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 hover:shadow-2xl transition-shadow duration-300">
+                                <h3 className="text-sm font-medium uppercase tracking-wide text-gray-600 mb-2">Total Revenue</h3>
+                                <p className="text-3xl font-light text-green-600">${(salesStats.total_revenue || 0).toFixed(2)}</p>
+                                <p className={`text-sm mt-1 ${(salesStats.revenue_growth || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {(salesStats.revenue_growth || 0) >= 0 ? '+' : ''}{salesStats.revenue_growth || 0}% vs last period
+                                </p>
+                            </div>
+                            <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 hover:shadow-2xl transition-shadow duration-300">
+                                <h3 className="text-sm font-medium uppercase tracking-wide text-gray-600 mb-2">Orders</h3>
+                                <p className="text-3xl font-light text-blue-600">{salesStats.total_orders || 0}</p>
+                                <p className={`text-sm mt-1 ${(salesStats.orders_growth || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {(salesStats.orders_growth || 0) >= 0 ? '+' : ''}{salesStats.orders_growth || 0}% vs last period
+                                </p>
+                            </div>
+                            <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 hover:shadow-2xl transition-shadow duration-300">
+                                <h3 className="text-sm font-medium uppercase tracking-wide text-gray-600 mb-2">Shipping Revenue</h3>
+                                <p className="text-3xl font-light text-purple-600">${(salesStats.total_shipping || 0).toFixed(2)}</p>
+                            </div>
+                            <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 hover:shadow-2xl transition-shadow duration-300">
+                                <h3 className="text-sm font-medium uppercase tracking-wide text-gray-600 mb-2">Avg Order Value</h3>
+                                <p className="text-3xl font-light text-orange-600">${(salesStats.average_order_value || 0).toFixed(2)}</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* General Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
                     <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 hover:shadow-2xl transition-shadow duration-300">
                         <h3 className="text-sm font-medium uppercase tracking-wide text-gray-600 mb-2">Total Orders</h3>

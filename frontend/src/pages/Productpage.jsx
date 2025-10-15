@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getProductById } from '../services/inventory';
 import { addToCart } from '../services/cart';
 import { useCart } from '../context/CartContext';
+import { useProductRefresh } from '../context/ProductContext';
 import { getUserRole } from '../services/authutils';
 
 // Main App component to display the Zara-style product page
@@ -10,6 +11,7 @@ const App = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addCount } = useCart();
+  const { refreshTrigger } = useProductRefresh();
   
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -95,7 +97,7 @@ const App = () => {
     if (id) {
       fetchProduct();
     }
-  }, [id, isAdmin]);
+  }, [id, isAdmin, refreshTrigger]);
 
   // Helper function to check if a size is available
   const isSizeAvailable = (size) => {
@@ -162,6 +164,47 @@ const App = () => {
       setAddedToCart(true);
       addCount(1);
       
+      // Refresh product data to get updated stock levels
+      const response = await getProductById(id);
+      const updatedProductData = response.data;
+      
+      // Update the product state with fresh stock data
+      let sizesArray = ['ONE SIZE'];
+      let inventoryMap = {};
+      const sizes = updatedProductData.sizes || updatedProductData.total_stock_by_sizes;
+      
+      if (Array.isArray(sizes)) {
+        if (sizes.length > 0 && typeof sizes[0] === 'object') {
+          // Array of objects like [{size: 'S', quantity: 10}]
+          sizesArray = sizes.map(s => String(s.size || s.label || 'ONE'));
+          inventoryMap = sizes.reduce((acc, item) => {
+            acc[String(item.size || item.label || 'ONE')] = parseInt(item.quantity || 0);
+            return acc;
+          }, {});
+        } else {
+          // Array of strings
+          sizesArray = sizes.map(s => String(s));
+          // If no quantity info, assume all sizes are available
+          sizesArray.forEach(size => {
+            inventoryMap[size] = 999; // Default high number for sizes without quantity
+          });
+        }
+      } else if (sizes && typeof sizes === 'object') {
+        // Object map like {S: 10, M: 5}
+        sizesArray = Object.keys(sizes);
+        Object.entries(sizes).forEach(([size, quantity]) => {
+          inventoryMap[size] = parseInt(quantity || 0);
+        });
+      }
+      
+      setProduct({
+        ...updatedProductData,
+        sizes: sizesArray,
+        colors: updatedProductData.colors || [{ name: updatedProductData.color || 'DEFAULT', code: 'bg-gray-200' }]
+      });
+      
+      setSizeInventory(inventoryMap);
+      
       // Reset feedback after delay
       setTimeout(() => {
         setAddedToCart(false);
@@ -169,7 +212,29 @@ const App = () => {
       
     } catch (err) {
       console.error('Failed to add to cart:', err);
-      alert('Failed to add item to cart. Please try again.');
+      
+      // Check if it's an authentication error
+      if (err.message && err.message.includes('No authentication token found')) {
+        // Redirect to login with current page as return URL
+        const currentUrl = window.location.pathname + window.location.search;
+        navigate(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
+        return;
+      }
+      
+      // Check if it's a 401 Unauthorized error
+      if (err.response && err.response.status === 401) {
+        // Redirect to login with current page as return URL
+        const currentUrl = window.location.pathname + window.location.search;
+        navigate(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
+        return;
+      }
+      
+      // Check if it's a stock error
+      if (err.response && err.response.data && err.response.data.error) {
+        alert(err.response.data.error);
+      } else {
+        alert('Failed to add item to cart. Please try again.');
+      }
     } finally {
       setAddingToCart(false);
     }
@@ -209,7 +274,7 @@ const App = () => {
         {/* === LEFT SIDE: IMAGE/CANVAS CONTAINER (Dominates on desktop) === */}
         <div className="lg:w-3/5 xl:w-2/3 h-auto lg:pr-12">
           {/* Main Product Image/Canvas Area - Styled for high contrast and large scale */}
-          <div className="w-full aspect-[2/3] bg-gray-100 mb-6 flex items-center justify-center border border-gray-200 shadow-sm rounded-lg overflow-hidden relative">
+          <div className="w-full aspect-square max-h-[500px] bg-gray-100 mb-6 flex items-center justify-center border border-gray-200 shadow-sm rounded-lg overflow-hidden relative">
             {(() => {
               const currentImage = getCurrentImage();
               const images = getProductImages();
@@ -454,41 +519,105 @@ const App = () => {
           
           <div className="my-6 border-t border-gray-100" />
           
-          {/* Collapsible Info Links (Simulated) */}
-          <InfoLink title="IN-STORE AVAILABILITY" />
-          <InfoLink title="SHIPPING, EXCHANGES AND RETURNS" />
+          {/* Collapsible Info Links with Content */}
+          <InfoLink title="IN-STORE AVAILABILITY">
+            <div className="space-y-3">
+              <p className="font-medium text-gray-800">Check availability at our stores:</p>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="font-medium">Downtown Store</span>
+                  <span className="text-green-600 font-medium">In Stock</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="font-medium">Mall Location</span>
+                  <span className="text-green-600 font-medium">In Stock</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="font-medium">Outlet Store</span>
+                  <span className="text-orange-600 font-medium">Limited Stock</span>
+                </div>
+                <div className="flex justify-between items-center py-2">
+                  <span className="font-medium">Airport Store</span>
+                  <span className="text-red-600 font-medium">Out of Stock</span>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                Store availability is updated every 2 hours. Please call ahead to confirm stock before visiting.
+              </p>
+            </div>
+          </InfoLink>
+          
+          <InfoLink title="SHIPPING, EXCHANGES AND RETURNS">
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium text-gray-800 mb-2">Shipping</h4>
+                <ul className="text-sm space-y-1 text-gray-600">
+                  <li>• Free standard shipping on orders over $50</li>
+                  <li>• Express shipping (1-2 business days): $15</li>
+                  <li>• Standard shipping (3-5 business days): $8</li>
+                  <li>• International shipping available to select countries</li>
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="font-medium text-gray-800 mb-2">Returns & Exchanges</h4>
+                <ul className="text-sm space-y-1 text-gray-600">
+                  <li>• 30-day return policy for unworn items with tags</li>
+                  <li>• Free returns within 30 days of purchase</li>
+                  <li>• Exchanges available in-store or online</li>
+                  <li>• Final sale items cannot be returned</li>
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="font-medium text-gray-800 mb-2">Size Guide</h4>
+                <p className="text-sm text-gray-600">
+                  Not sure about your size? Use our size guide or visit any of our stores for a free fitting consultation.
+                </p>
+              </div>
+              
+              <p className="text-xs text-gray-500 mt-3">
+                For more information, contact our customer service at 1-800-AEON-HELP or visit our FAQ section.
+              </p>
+            </div>
+          </InfoLink>
           
         </div>
         
       </div>
       
-      {/* === BOTTOM SECTION: YOU MIGHT ALSO LIKE === */}
-      <div className="mt-20 max-w-7xl mx-auto">
-        <h2 className="text-xl font-light tracking-wider mb-8 uppercase text-center lg:text-left">YOU MIGHT ALSO LIKE</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {['Trousers', 'Sweater', 'Loafers', 'Bag'].map((item, i) => (
-            <div key={`rec-${i}`} className="text-left cursor-pointer hover:opacity-80 transition-opacity">
-              <div className="aspect-[2/3] bg-gray-50 mb-3 border border-gray-200 rounded-md flex items-center justify-center">
-                <div className="text-xs text-gray-400 text-center">Related Product<br />Image</div>
-              </div>
-              <p className="text-sm font-light uppercase leading-tight">{item}</p>
-              <p className="text-sm font-medium mt-1">${(49.90 + i * 10).toFixed(2)}</p>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 };
 
-// Small utility component for the collapsible info sections
-const InfoLink = ({ title }) => (
-  <button className="w-full text-left text-sm font-medium py-3 border-b border-gray-200 flex justify-between items-center hover:bg-gray-50 transition-colors">
-    <span className="uppercase">{title}</span>
-    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
-    </svg>
-  </button>
-);
+// Collapsible info component with content
+const InfoLink = ({ title, children }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="border-b border-gray-200">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full text-left text-sm font-medium py-3 flex justify-between items-center hover:bg-gray-50 transition-colors"
+      >
+        <span className="uppercase">{title}</span>
+        <svg 
+          className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} 
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24" 
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
+        </svg>
+      </button>
+      {isOpen && (
+        <div className="pb-4 text-sm text-gray-600 leading-relaxed">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default App;

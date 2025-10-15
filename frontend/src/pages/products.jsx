@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import ProductUserCard from '../components/ProductUserCard';
 import { getFilteredProducts } from '../services/inventory';
+import { useProductRefresh } from '../context/ProductContext';
 
 const Products = () => {
   const [searchParams] = useSearchParams();
   const params = useParams();
+  const { refreshTrigger } = useProductRefresh();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -99,6 +101,11 @@ const Products = () => {
         } else if (pathname.startsWith('/collection/')) {
           // Convert URL-friendly name back to collection name
           currentFilters.collection = convertUrlToDbName(params.collectionName);
+        } else if (pathname === '/products') {
+          // Handle direct /products route with query parameters
+          // Category is already set from query params above
+          // This allows category-only filtering without gender restriction
+          console.log('Direct products route - category-only filtering enabled');
         }
 
         setFilters(currentFilters);
@@ -121,7 +128,7 @@ const Products = () => {
     };
 
     fetchProducts();
-  }, [searchParams, params]);
+  }, [searchParams, params, refreshTrigger]);
 
   const getPageTitle = () => {
     if (filters.collection) {

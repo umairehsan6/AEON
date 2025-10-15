@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { checkoutOrder, getUserCheckoutData } from '../services/orders';
 import { getCart } from '../services/cart';
 import { useCart } from '../context/CartContext';
+import { useProductRefresh } from '../context/ProductContext';
 import { useNavigate } from 'react-router-dom';
+import Header from '../components/header';
 
 const CheckoutPage = () => {
     const [firstName, setFirstName] = useState('');
@@ -21,6 +23,7 @@ const CheckoutPage = () => {
     const [cartEmpty, setCartEmpty] = useState(false);
     const navigate = useNavigate();
     const { refreshCount } = useCart();
+    const { triggerProductRefresh } = useProductRefresh();
 
     // Load user data, addresses, and cart items on component mount
     useEffect(() => {
@@ -37,7 +40,10 @@ const CheckoutPage = () => {
                 setFirstName(user.first_name || '');
                 setLastName(user.last_name || '');
                 setEmail(user.email || '');
-                setPhone(user.phone || '');
+                
+                // Pre-fill phone number from user data or localStorage
+                const savedPhone = localStorage.getItem('checkout_phone');
+                setPhone(user.phone || savedPhone || '');
                 
                 // Pre-fill addresses (editable)
                 setFirstAddress(addresses.first_address || '');
@@ -88,12 +94,34 @@ const CheckoutPage = () => {
         e.preventDefault();
         
         // Validate required fields
+        if (!email?.trim()) {
+            alert('Please enter your email address.');
+            return;
+        }
+        if (!phone?.trim()) {
+            alert('Please enter your phone number.');
+            return;
+        }
         if (!firstAddress?.trim()) {
             alert('Please enter your first address.');
             return;
         }
         if (!secondAddress?.trim()) {
             alert('Please enter your second address.');
+            return;
+        }
+        
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            alert('Please enter a valid email address.');
+            return;
+        }
+        
+        // Validate phone format (basic validation)
+        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+        if (!phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''))) {
+            alert('Please enter a valid phone number.');
             return;
         }
         
@@ -109,11 +137,20 @@ const CheckoutPage = () => {
             const result = await checkoutOrder({ 
                 first_address: firstAddress, 
                 second_address: secondAddress, 
-                is_office_address: isOffice 
+                is_office_address: isOffice,
+                phone: phone
             });
             console.log('Checkout successful:', result);
+            
+            // Save phone number to localStorage for future checkouts
+            if (phone) {
+                localStorage.setItem('checkout_phone', phone);
+            }
+            
             setShowSuccess(true);
             await refreshCount();
+            // Trigger product refresh to update stock information
+            triggerProductRefresh();
             setTimeout(() => {
                 setShowSuccess(false);
                 navigate('/profile');
@@ -128,10 +165,13 @@ const CheckoutPage = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-white text-neutral-900 font-sans flex items-center justify-center">
-                <div className="text-center">
-                    <h2 className="text-2xl font-light uppercase tracking-widest mb-4">Loading...</h2>
-                    <p className="text-gray-600">Preparing your checkout information</p>
+            <div className="min-h-screen bg-white text-neutral-900 font-sans">
+                <Header />
+                <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 80px)' }}>
+                    <div className="text-center">
+                        <h2 className="text-2xl font-light uppercase tracking-widest mb-4">Loading...</h2>
+                        <p className="text-gray-600">Preparing your checkout information</p>
+                    </div>
                 </div>
             </div>
         );
@@ -205,11 +245,26 @@ const CheckoutPage = () => {
                                 ))}
                             </div>
                             
-                            {/* Total */}
-                            <div className="border-t border-gray-200 pt-4">
-                                <div className="flex justify-between items-center text-lg font-medium">
+                            {/* Order Summary */}
+                            <div className="border-t border-gray-200 pt-4 space-y-3">
+                                {/* Subtotal */}
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="uppercase tracking-widest text-gray-600">Subtotal</span>
+                                    <span className="font-medium">${totalAmount.toFixed(2)}</span>
+                                </div>
+                                
+                                {/* Shipping */}
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="uppercase tracking-widest text-gray-600">Shipping</span>
+                                    <span className="font-medium">
+                                        {totalAmount >= 150 ? 'FREE' : '$5.99'}
+                                    </span>
+                                </div>
+                                
+                                {/* Total */}
+                                <div className="flex justify-between items-center text-lg font-medium border-t border-gray-200 pt-3">
                                     <span className="uppercase tracking-widest">Total</span>
-                                    <span>${totalAmount.toFixed(2)}</span>
+                                    <span>${(totalAmount + (totalAmount >= 150 ? 0 : 5.99)).toFixed(2)}</span>
                                 </div>
                             </div>
                             
@@ -260,12 +315,30 @@ const CheckoutPage = () => {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                             <div>
-                                <label className="block text-xs uppercase tracking-widest mb-2">Email</label>
-                                <input type="email" value={email} readOnly className="w-full border-b border-gray-300 py-2 bg-transparent text-gray-600" />
+                                <label className="block text-xs uppercase tracking-widest mb-2">Email *</label>
+                                <input 
+                                    type="email" 
+                                    value={email} 
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                    className="w-full border-b border-black py-2 focus:outline-none" 
+                                    placeholder="Enter your email"
+                                />
                             </div>
                             <div>
-                                <label className="block text-xs uppercase tracking-widest mb-2">Phone</label>
-                                <input type="tel" value={phone} readOnly className="w-full border-b border-gray-300 py-2 bg-transparent text-gray-600" />
+                                <label className="block text-xs uppercase tracking-widest mb-2">Phone *</label>
+                                <input 
+                                    type="tel" 
+                                    value={phone} 
+                                    onChange={(e) => {
+                                        setPhone(e.target.value);
+                                        // Save to localStorage for future use
+                                        localStorage.setItem('checkout_phone', e.target.value);
+                                    }}
+                                    required
+                                    className="w-full border-b border-black py-2 focus:outline-none" 
+                                    placeholder="Enter your phone number"
+                                />
                             </div>
                         </div>
                     </div>

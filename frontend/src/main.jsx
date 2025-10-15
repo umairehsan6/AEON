@@ -21,6 +21,7 @@ import CheckoutPage from './pages/Checkout.jsx'
 import OrdersPage from './pages/Orders.jsx'
 import DashboardPage from './pages/Dashboard.jsx'
 import { CartProvider } from './context/CartContext.jsx'
+import { ProductProvider } from './context/ProductContext.jsx'
 const router = createBrowserRouter(createRoutesFromElements(
   <>
     <Route path='/' element={<Layout />}>
@@ -73,7 +74,9 @@ const router = createBrowserRouter(createRoutesFromElements(
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <CartProvider>
-      <RouterProvider router={router} />
+      <ProductProvider>
+        <RouterProvider router={router} />
+      </ProductProvider>
     </CartProvider>
   </StrictMode>,
 )

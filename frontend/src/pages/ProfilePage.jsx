@@ -11,6 +11,8 @@ import {
   Package,
   ChevronRight,
   Pencil,
+  Shield,
+  Settings,
 } from 'lucide-react';
 import { getUserInfo, getUserRole } from '../services/authutils';
 import { logout } from '../services/auth';
@@ -39,7 +41,7 @@ const LinkItem = ({ name, icon: Icon, description, onClick }) => (
     <div className="flex items-center space-x-4 text-left">
       <Icon className="w-5 h-5 text-gray-500" />
       <div>
-        <div className="font-medium text-gray-900 tracking-wide text-sm">{name.toUpperCase()}</div>
+        <div className="font-medium text-gray-900 tracking-wide text-sm">{name?.toUpperCase() || ''}</div>
         <div className="text-xs text-gray-400 mt-0.5 hidden sm:block">{description}</div>
       </div>
     </div>
@@ -67,7 +69,7 @@ const ProfileHeader = ({ userInfo, onEditProfile }) => (
 
     <h1 className="text-xl font-light text-gray-900 tracking-wider">
       HELLO, <span className="font-semibold">
-        {userInfo?.first_name ? userInfo.first_name.toUpperCase() : 'USER'}
+        {userInfo?.first_name?.toUpperCase() || 'USER'}
       </span>
     </h1>
 
@@ -83,6 +85,30 @@ const ProfileHeader = ({ userInfo, onEditProfile }) => (
     >
       [ EDIT PROFILE ]
     </button>
+  </div>
+);
+
+/**
+ * Admin Switch Component - Only shows for admin users
+ */
+const AdminSwitch = ({ onSwitchToAdmin }) => (
+  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center space-x-3">
+        <Shield className="w-5 h-5 text-blue-600" />
+        <div>
+          <h3 className="text-sm font-medium text-blue-900">Admin Access</h3>
+          <p className="text-xs text-blue-700">Switch to admin dashboard</p>
+        </div>
+      </div>
+      <button
+        onClick={onSwitchToAdmin}
+        className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 transition-colors duration-200"
+      >
+        <Settings className="w-4 h-4" />
+        <span>ADMIN VIEW</span>
+      </button>
+    </div>
   </div>
 );
 
@@ -127,7 +153,7 @@ const OrdersSection = ({ recentOrder, onViewOrders }) => (
 
           <div className="py-3 px-4 bg-gray-50 border border-gray-100 rounded-md">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-lg font-bold text-black tracking-wider">{recentOrder.status.toUpperCase()}</div>
+              <div className="text-lg font-bold text-black tracking-wider">{recentOrder.status?.toUpperCase() || 'UNKNOWN'}</div>
               <span className={`px-2 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${
                 recentOrder.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                 recentOrder.status === 'packaging' ? 'bg-blue-100 text-blue-800' :
@@ -271,6 +297,10 @@ const App = () => {
     }
   };
 
+  const handleSwitchToAdmin = () => {
+    navigate('/admin');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white font-sans flex items-center justify-center">
@@ -304,6 +334,11 @@ const App = () => {
 
         {/* --- Header Section --- */}
         <ProfileHeader userInfo={userInfo} onEditProfile={handleEditProfile} />
+
+        {/* --- Admin Switch (Only for admin users) --- */}
+        {getUserRole() === 'admin' && (
+          <AdminSwitch onSwitchToAdmin={handleSwitchToAdmin} />
+        )}
 
         {/* --- Settings Menu Section --- */}
         <div className="bg-white border-t border-b border-gray-200 divide-y divide-gray-100">

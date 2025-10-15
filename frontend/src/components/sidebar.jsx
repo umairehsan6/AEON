@@ -15,6 +15,7 @@ import {
   X, // Close icon for mobile
   User, // User view icon
   Shield, // Admin view icon
+  FileText, // Orders icon
 } from 'lucide-react';
 
 // --- UI Data --- 
@@ -37,6 +38,12 @@ const navItems = [
     name: 'Collection',
     icon: ShoppingBag,
     path: '/admin/collection',
+    level: 0,
+  },
+  {
+    name: 'Orders',
+    icon: FileText,
+    path: '/admin/orders',
     level: 0,
   },
   {

@@ -13,6 +13,7 @@ export default function Signup() {
 
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -22,6 +23,7 @@ export default function Signup() {
     e.preventDefault();
     setErrors({});
     setSuccess(false);
+    setIsLoading(true);
 
     try {
       await signup(formData);
@@ -40,6 +42,8 @@ export default function Signup() {
       } else {
         setErrors({ non_field_errors: ["Something went wrong"] });
       }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -100,7 +104,9 @@ export default function Signup() {
         <p style={{ color: "red" }}>{errors.non_field_errors}</p>
       )}
 
-      <button type="submit">Sign Up</button>
+      <button type="submit" disabled={isLoading}>
+        {isLoading ? 'Signing Up...' : 'Sign Up'}
+      </button>
 
       {success && <p style={{ color: "green" }}>Signup successful!</p>}
     </form>

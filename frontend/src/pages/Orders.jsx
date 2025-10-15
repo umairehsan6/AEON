@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getMyOrders, getAllOrders, updateOrderStatus, cancelOrder } from '../services/orders';
 import { getUserRole } from '../services/authutils';
-import { Package, X, AlertCircle } from 'lucide-react';
+import { Package, X, AlertCircle, Printer } from 'lucide-react';
+import jsPDF from 'jspdf';
 
 const OrdersPage = () => {
     const [orders, setOrders] = useState([]);
@@ -58,6 +59,125 @@ const OrdersPage = () => {
             setCancelReason('');
         } catch (error) {
             console.error('Failed to cancel order:', error);
+        }
+    };
+
+    const generateOrderSlip = (order) => {
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        
+        // Header
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        doc.text('AEON ORDER SLIP', pageWidth / 2, 20, { align: 'center' });
+        
+        // Order Details
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Order ID: #${order.id}`, 20, 40);
+        doc.text(`Date: ${new Date(order.created_at).toLocaleDateString()}`, 20, 50);
+        doc.text(`Customer: ${order.first_name} ${order.last_name}`, 20, 60);
+        doc.text(`Email: ${order.email}`, 20, 70);
+        
+        // Shipping Address
+        doc.text('Shipping Address:', 20, 90);
+        doc.text(order.first_address, 20, 100);
+        if (order.second_address) {
+            doc.text(order.second_address, 20, 110);
+        }
+        if (order.is_office_address) {
+            doc.text('(Office Address)', 20, 120);
+        }
+        
+        // Order Items
+        let yPosition = 140;
+        doc.text('Order Items:', 20, yPosition);
+        yPosition += 10;
+        
+        order.items?.forEach((item, index) => {
+            if (yPosition > pageHeight - 40) {
+                doc.addPage();
+                yPosition = 20;
+            }
+            
+            doc.setFont('helvetica', 'bold');
+            doc.text(item.product_detail?.name || 'Product', 20, yPosition);
+            doc.setFont('helvetica', 'normal');
+            yPosition += 8;
+            
+            doc.text(`Size: ${item.size}`, 20, yPosition);
+            doc.text(`Quantity: ${item.quantity}`, 20, yPosition + 8);
+            doc.text(`Price: $${item.price_at_purchase}`, 20, yPosition + 16);
+            doc.text(`Total: $${(item.quantity * item.price_at_purchase).toFixed(2)}`, 20, yPosition + 24);
+            
+            yPosition += 40;
+        });
+        
+        // Order Summary
+        const totalAmount = order.items?.reduce((sum, item) => sum + (item.quantity * item.price_at_purchase), 0) || 0;
+        const totalQuantity = order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+        
+        yPosition += 20;
+        doc.setFont('helvetica', 'bold');
+        doc.text('Order Summary:', 20, yPosition);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Total Items: ${order.items?.length || 0}`, 20, yPosition + 10);
+        doc.text(`Total Quantity: ${totalQuantity}`, 20, yPosition + 20);
+        doc.text(`Order Total: $${totalAmount.toFixed(2)}`, 20, yPosition + 30);
+        
+        // Footer
+        doc.setFontSize(10);
+        doc.text('This slip confirms that the order has been dispatched.', pageWidth / 2, pageHeight - 20, { align: 'center' });
+        doc.text('Generated on: ' + new Date().toLocaleString(), pageWidth / 2, pageHeight - 10, { align: 'center' });
+        
+        return doc;
+    };
+
+    const handlePrintSlip = async (order) => {
+        try {
+            console.log('Generating slip for order:', order.id);
+            
+            // Generate PDF
+            const pdf = generateOrderSlip(order);
+            console.log('PDF generated successfully');
+            
+            // Update order status to dispatched immediately when PDF is generated
+            console.log('Updating order status to on_the_way');
+            await updateOrderStatus(order.id, 'on_the_way');
+            console.log('Order status updated successfully');
+            
+            // Update local state immediately
+            setOrders(prev => prev.map(o => 
+                o.id === order.id 
+                    ? { ...o, status: 'on_the_way' }
+                    : o
+            ));
+            console.log('Local state updated');
+            
+            // Open PDF in new window for printing
+            const pdfBlob = pdf.output('blob');
+            const pdfUrl = URL.createObjectURL(pdfBlob);
+            const printWindow = window.open(pdfUrl, '_blank');
+            
+            // Wait for the window to load and then trigger print
+            if (printWindow) {
+                printWindow.onload = () => {
+                    printWindow.print();
+                };
+            }
+            
+            // Clean up the URL object
+            setTimeout(() => {
+                URL.revokeObjectURL(pdfUrl);
+            }, 1000);
+            
+            console.log('Slip generation completed successfully');
+            
+        } catch (error) {
+            console.error('Failed to generate slip:', error);
+            console.error('Error details:', error.response?.data || error.message);
+            alert(`Failed to generate slip: ${error.message || 'Unknown error'}`);
         }
     };
 
@@ -123,12 +243,23 @@ const OrdersPage = () => {
                                                 {order.status.replace('_', ' ')}
                                             </span>
                                             {isAdmin && (
-                                                <button
-                                                    onClick={() => setEditingOrder(order.id)}
-                                                    className="text-xs uppercase tracking-widest border border-black px-3 py-2 hover:bg-black hover:text-white transition duration-200"
-                                                >
-                                                    Update Status
-                                                </button>
+                                                <>
+                                                    <button
+                                                        onClick={() => setEditingOrder(order.id)}
+                                                        className="text-xs uppercase tracking-widest border border-black px-3 py-2 hover:bg-black hover:text-white transition duration-200"
+                                                    >
+                                                        Update Status
+                                                    </button>
+                                                    {(order.status === 'pending' || order.status === 'packaging') && (
+                                                        <button
+                                                            onClick={() => handlePrintSlip(order)}
+                                                            className="text-xs uppercase tracking-widest border border-green-500 text-green-500 px-3 py-2 hover:bg-green-500 hover:text-white transition duration-200 flex items-center gap-1"
+                                                        >
+                                                            <Printer className="w-3 h-3" />
+                                                            Print Slip
+                                                        </button>
+                                                    )}
+                                                </>
                                             )}
                                             {canCancelOrder(order) && (
                                                 <button
